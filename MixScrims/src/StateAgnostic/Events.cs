@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Logging;
+using MixScrims.Contract;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.Events;
 using SwiftlyS2.Shared.GameEventDefinitions;
 using SwiftlyS2.Shared.GameEvents;
 using SwiftlyS2.Shared.Misc;
 using SwiftlyS2.Shared.Players;
+using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace MixScrims;
 
@@ -37,12 +39,19 @@ partial class MixScrims
         {
             var player = Core.PlayerManager.GetPlayer(playerSlot);
             if (cfg.DetailedLogging)
-                logger.LogInformation($"HandleClientPutInServer: Retrieved player {player?.Controller.PlayerName} from slot {playerSlot}.");
-            if (player != null)
+                logger.LogInformation($"HandleClientPutInServer: Retrieved player from slot {playerSlot}.");
+            if (player != null && player.IsValid)
             {
                 if (cfg.DetailedLogging)
-                    logger.LogInformation($"HandleClientPutInServer: Moving player {player.Controller.PlayerName} to Spectator team.");
-                Core.Scheduler.DelayBySeconds(2, () => HandlePlayerChangeTeam(player, 0));
+                    logger.LogInformation($"HandleClientPutInServer: Moving player slot {playerSlot} to Spectator team.");
+                Core.Scheduler.DelayBySeconds(2, () =>
+                {
+                    var delayedPlayer = Core.PlayerManager.GetPlayer(playerSlot);
+                    if (delayedPlayer != null && delayedPlayer.IsValid)
+                    {
+                        HandlePlayerChangeTeam(delayedPlayer, 0);
+                    }
+                });
             }
         }
         catch (Exception ex)
@@ -228,17 +237,22 @@ partial class MixScrims
                 logger.LogInformation($"HandleDisconnectedPlayer: Removed {player.Controller.PlayerName} from playingTPlayers.");
         }
 
+        var matchState = mixScrimsService.GetCurrentMatchState();
+
         if (matchState == MatchState.PickingTeam)
         {
-            if (player.PlayerID == captainCt?.PlayerID)
+            if (!cfg.DisableCaptains)
             {
-                captainCt = null;
-                StartTeamPickingPhase();
-            }
-            if (player.PlayerID == captainT?.PlayerID)
-            {
-                captainT = null;
-                StartTeamPickingPhase();
+                if (player.PlayerID == captainCt?.PlayerID)
+                {
+                    captainCt = null;
+                    StartTeamPickingPhase();
+                }
+                if (player.PlayerID == captainT?.PlayerID)
+                {
+                    captainT = null;
+                    StartTeamPickingPhase();
+                }
             }
         }
 
@@ -246,39 +260,42 @@ partial class MixScrims
             || matchState == MatchState.MapChosen
             || matchState == MatchState.Timeout)
         {
-            if (cfg.DetailedLogging)
-                logger.LogInformation($"HandleDisconnectedPlayer: MatchState is {matchState}");
-            if (player.PlayerID == captainCt?.PlayerID)
+            if (!cfg.DisableCaptains)
             {
                 if (cfg.DetailedLogging)
-                    logger.LogInformation($"HandleDisconnectedPlayer: Disconnected player is CT captain");
+                    logger.LogInformation($"HandleDisconnectedPlayer: MatchState is {matchState}");
+                if (player.PlayerID == captainCt?.PlayerID)
+                {
+                    if (cfg.DetailedLogging)
+                        logger.LogInformation($"HandleDisconnectedPlayer: Disconnected player is CT captain");
 
-                captainCt = null;
-                var newCaptain = playingCtPlayers.Where(p => p.PlayerID != player.PlayerID).FirstOrDefault();
+                    captainCt = null;
+                    var newCaptain = playingCtPlayers.Where(p => p.PlayerID != player.PlayerID).FirstOrDefault();
 
-                if (cfg.DetailedLogging)
-                    logger.LogInformation($"HandleDisconnectedPlayer: New CT captain is {newCaptain?.Controller.PlayerName}");
+                    if (cfg.DetailedLogging)
+                        logger.LogInformation($"HandleDisconnectedPlayer: New CT captain is {newCaptain?.Controller.PlayerName}");
 
-                PickCtCaptain(newCaptain);
-            }
-            if (player.PlayerID == captainT?.PlayerID)
-            {
-                if (cfg.DetailedLogging)
-                    logger.LogInformation($"HandleDisconnectedPlayer: Disconnected player is T captain");
+                    PickCtCaptain(newCaptain);
+                }
+                if (player.PlayerID == captainT?.PlayerID)
+                {
+                    if (cfg.DetailedLogging)
+                        logger.LogInformation($"HandleDisconnectedPlayer: Disconnected player is T captain");
 
-                captainT = null;
-                var newCaptain = playingTPlayers.Where(p => p.PlayerID != player.PlayerID).FirstOrDefault();
+                    captainT = null;
+                    var newCaptain = playingTPlayers.Where(p => p.PlayerID != player.PlayerID).FirstOrDefault();
 
-                if (cfg.DetailedLogging)
-                    logger.LogInformation($"HandleDisconnectedPlayer: New T captain is {newCaptain?.Controller.PlayerName}");
-                PickTCaptain(newCaptain);
+                    if (cfg.DetailedLogging)
+                        logger.LogInformation($"HandleDisconnectedPlayer: New T captain is {newCaptain?.Controller.PlayerName}");
+                    PickTCaptain(newCaptain);
+                }
             }
         }
 
         if (matchState == MatchState.PickingStartingSide
             || matchState == MatchState.Timeout)
         {
-            if (player.PlayerID == winnerCaptain?.PlayerID)
+            if (!cfg.DisableCaptains && player.PlayerID == winnerCaptain?.PlayerID)
             {
                 if (cfg.DetailedLogging)
                     logger.LogInformation($"HandleDisconnectedPlayer: Disconnected player is winner captain");
@@ -346,11 +363,22 @@ partial class MixScrims
     /// </summary>
     public HookResult HandlePlayerChangeTeam(IPlayer? player, int teamTojoin)
     {
+        if (cfg.DetailedLogging)
+            logger.LogInformation($"HandlePlayerChangeTeam: Called for player {player?.Controller.PlayerName} (slot {player?.Slot}), teamTojoin={teamTojoin}");
+
+
         if (player == null)
         {
             if (cfg.DetailedLogging)
                 logger.LogWarning("HandlePlayerChangeTeam: player is null");
             return HookResult.Stop;
+        }
+
+        if (player.IsFakeClient)
+        {
+            if (cfg.DetailedLogging)
+                logger.LogInformation($"HandlePlayerChangeTeam: {player.Controller.PlayerName} is a fake client, allowing");
+            return HookResult.Continue;
         }
 
         if (!player.IsValid)
@@ -369,6 +397,8 @@ partial class MixScrims
 
         if (IsBot(player))
         {
+            if (cfg.DetailedLogging)
+                logger.LogInformation($"HandlePlayerChangeTeam: {player.Controller.PlayerName} is a bot, allowing");
             return HookResult.Continue;
         }
 
@@ -380,24 +410,37 @@ partial class MixScrims
             return HookResult.Continue;
         }
 
+        var matchState = mixScrimsService.GetCurrentMatchState();
+        if (cfg.DetailedLogging)
+            logger.LogInformation($"HandlePlayerChangeTeam: Current match state is {matchState}");
+
         if (matchState == MatchState.Warmup ||
             matchState == MatchState.MapVoting ||
             matchState == MatchState.MapChosen)
         {
-            if (freshlyJoinedPlayers.Any(p => p == player.Slot))
+            bool isInFreshlyJoined = freshlyJoinedPlayers.Any(p => p == player.Slot);
+            if (cfg.DetailedLogging)
+                logger.LogInformation($"HandlePlayerChangeTeam: Player {player.Controller.PlayerName} in freshlyJoinedPlayers: {isInFreshlyJoined}");
+
+            if (isInFreshlyJoined)
             {
                 HandlePlayerChangeTeamOnJoin(player);
                 if (cfg.DetailedLogging)
-                    logger.LogInformation($"HandlePlayerChangeTeam: Match state warmup. {player.Controller.PlayerName} joined team {teamTojoin}");
+                    logger.LogInformation($"HandlePlayerChangeTeam: Match state {matchState}. {player.Controller.PlayerName} joined team {teamTojoin}");
+            }
+            else
+            {
+                if (cfg.DetailedLogging)
+                    logger.LogInformation($"HandlePlayerChangeTeam: Match state {matchState}. {player.Controller.PlayerName} not in freshlyJoinedPlayers, allowing team change to {teamTojoin}");
             }
             return HookResult.Continue;
         }
 
         if (matchState == MatchState.KnifeRound)
         {
-            if (player.PlayerID == captainCt?.PlayerID || player.PlayerID == captainT?.PlayerID)
+            if (!cfg.DisableCaptains && (player.PlayerID == captainCt?.PlayerID || player.PlayerID == captainT?.PlayerID))
             {
-                PrintMessageToPlayer(player, Core.Localizer["error.captainCannotChangeTeam"]);
+                PrintMessageToPlayer(player, Core.Localizer["error.captain.cannot_change_team"]);
                 return HookResult.Stop;
             }
         }
@@ -416,7 +459,7 @@ partial class MixScrims
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation($"HandlePlayerJoinTeam - PickingTeam: Player {player.Controller.PlayerName} attempted to join CT team without being picked.");
-                    PrintMessageToPlayer(player, Core.Localizer["error.teamJoinDeniedCt"]);
+                    PrintMessageToPlayer(player, Core.Localizer["error.team.join_denied.ct"]);
                     return HookResult.Stop;
                 }
             }
@@ -432,7 +475,7 @@ partial class MixScrims
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation($"HandlePlayerJoinTeam - PickingTeam: Player {player.Controller.PlayerName} attempted to join T team without being picked.");
-                    PrintMessageToPlayer(player, Core.Localizer["error.teamJoinDeniedT"]);
+                    PrintMessageToPlayer(player, Core.Localizer["error.team.join_denied.t"]);
                     return HookResult.Stop;
                 }
             }
@@ -463,7 +506,7 @@ partial class MixScrims
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation($"HandlePlayerJoinTeam - Match: Player {player.Controller.PlayerName} attempted to join CT team but it is full.");
-                    PrintMessageToPlayer(player, Core.Localizer["error.teamFullCt"]);
+                    PrintMessageToPlayer(player, Core.Localizer["error.team.full.ct"]);
                     return HookResult.Stop;
                 }
             }
@@ -488,7 +531,7 @@ partial class MixScrims
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation($"HandlePlayerJoinTeam - Match: Player {player.Controller.PlayerName} attempted to join T team but it is full.");
-                    PrintMessageToPlayer(player, Core.Localizer["error.teamFullT"]);
+                    PrintMessageToPlayer(player, Core.Localizer["error.team.full.t"]);
                     return HookResult.Stop;
                 }
             }
@@ -512,10 +555,50 @@ partial class MixScrims
     [GameEventHandler(HookMode.Pre)]
     public HookResult HandleFreezetimeEnd(EventRoundFreezeEnd @event)
     {
+        var matchState = mixScrimsService.GetCurrentMatchState();
         if (matchState == MatchState.Match || matchState == MatchState.KnifeRound)
         {
             canPlayerBeRespawned = false;
         }
         return HookResult.Continue;
+    }
+
+    [EventListener<EventDelegates.OnEntityTakeDamage>]
+    public void HandleTakeDamage(IOnEntityTakeDamageEvent @event)
+    {
+        if (!cfg.FaceitLikeDamageControl)
+        {
+            return;
+        }
+
+        var victim = @event.Entity.As<CCSPlayerPawn>();
+        var attacker = @event.Info.Attacker.Value?.As<CCSPlayerPawn>();
+        var weapon = @event.Info.DamageType;
+
+        if (attacker == null)
+        {
+            logger.LogWarning("HandleTakeDamage: Attacker is null");
+            return;
+        }
+
+        if (victim == null)
+        {
+            logger.LogWarning("HandleTakeDamage: Victim is null");
+            return;
+        }
+
+        //if (cfg.DetailedLogging)
+        //    logger.LogInformation($"HandleTakeDamage: {attacker.Controller.Value?.PlayerName} damaged {victim.Controller.Value?.PlayerName} with {weapon}");
+
+        if (attacker.Team == victim.Team)
+        {
+            if (weapon == DamageTypes_t.DMG_BULLET || weapon == DamageTypes_t.DMG_SLASH)
+            {
+                if(cfg.DetailedLogging)
+                    logger.LogInformation("HandleTakeDamage: Friendly fire or knife slash detected, skipping.");
+
+                @event.Info.Damage = 0;
+            }
+        }
     }
 }

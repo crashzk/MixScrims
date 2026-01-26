@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Extensions.Logging;
-using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Players;
 
 namespace MixScrims;
@@ -28,7 +24,7 @@ public sealed partial class MixScrims
                 return;
             }
 
-            player.SendChat(Core.Localizer["serverPrefix"] + " " + message);
+            player.SendChat(Core.Localizer["server_prefix"] + " " + message);
         });
     }
 
@@ -61,7 +57,7 @@ public sealed partial class MixScrims
 
         Core.Scheduler.NextTick(() =>
         {
-            Core.PlayerManager.SendChat(Core.Localizer["serverPrefix"] + " " + message);
+            Core.PlayerManager.SendChat(Core.Localizer["server_prefix"] + " " + message);
         });
     }
 
@@ -166,9 +162,14 @@ public sealed partial class MixScrims
     private int GetNumberOfPlayersRequiredToStart()
     {
         int totalPlayers = GetPlayers().Count;
-        if (totalPlayers < cfg.MinimumReadyPlayers)
-            return cfg.MinimumReadyPlayers;
-        return totalPlayers;
+        if (cfg.RequireAllConnectedPlayersToBeReady)
+        {
+            if (totalPlayers < cfg.MinimumReadyPlayers)
+                return cfg.MinimumReadyPlayers;
+            return totalPlayers;
+        }
+
+        return cfg.MinimumReadyPlayers;
     }
 
     /// <summary>

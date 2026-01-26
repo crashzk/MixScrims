@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using SwiftlyS2.Shared.Natives;
 using SwiftlyS2.Shared.Players;
+using MixScrims.Contract;
 
 namespace MixScrims;
 
@@ -13,11 +13,13 @@ public partial class MixScrims
     /// </summary>
     private void StartMatch()
     {
-        matchState = MatchState.Match;
+        mixScrimsService.SetMatchState(MatchState.Match);
 
-        PrintMessageToAllPlayers(Core.Localizer["stateChanged.matchStarted"]);
+        PrintMessageToAllPlayers(Core.Localizer["announcement.state_changed.match"]);
 
         MovePlayersToDesignatedTeamsPreMatch();
+
+        StopPreMatchAnnouncementTimers();
 
         UnpauseMatch();
         Core.Engine.ExecuteCommand("exec mixscrims/match_start.cfg");
@@ -59,6 +61,9 @@ public partial class MixScrims
         FixTeammateColors();
     }
 
+    /// <summary>
+    /// Assigns available teammate colors to all currently playing players who do not already have one.
+    /// </summary>
     private void FixTeammateColors()
     {
         var players = GetPlayingPlayers();
@@ -74,6 +79,9 @@ public partial class MixScrims
         }
     }
 
+    /// <summary>
+    /// Finds the first available player color index for the specified player based on their team affiliation.
+    /// </summary>
     private int? GetFreePlayerColor(IPlayer player)
     {
         if (player == null)

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.Menus;
 using SwiftlyS2.Core.Menus.OptionsBase;
+using MixScrims.Contract;
 
 namespace MixScrims;
 
@@ -15,18 +16,20 @@ public partial class MixScrims
     /// </summary>
     private void StartMapVotingPhase()
     {
+        StopPreMatchAnnouncementTimers();
+
         if (cfg.DetailedLogging)
             logger.LogInformation("StartMapVotingPhase");
-        matchState = MatchState.MapVoting;
+        mixScrimsService.SetMatchState(MatchState.MapVoting);
         votedMaps.Clear();
-        PrintMessageToAllPlayers(Core.Localizer["stateChanged.mapVotingStarted"]);
+        PrintMessageToAllPlayers(Core.Localizer["announcement.state_changed.map_voting"]);
 
         var mapsToVote = GetMapsToVote();
         if (mapsToVote.Count == 0)
         {
-            PrintMessageToAllPlayers(Core.Localizer["error.noMapsConfigured"]);
+            PrintMessageToAllPlayers(Core.Localizer["error.no_maps_configured"]);
             logger.LogError("No maps available for voting. Check your configuration.");
-            matchState = MatchState.Reset;
+            mixScrimsService.SetMatchState(MatchState.Reset);
             return;
         }
 
@@ -35,7 +38,7 @@ public partial class MixScrims
 
         var builder = Core.MenusAPI
             .CreateBuilder()
-            .Design.SetMenuTitle(Core.Localizer["menu.mapVotingTitle"])
+            .Design.SetMenuTitle(Core.Localizer["menu.map_voting"])
             .Design.SetMenuTitleVisible(true)
             .Design.SetMenuFooterVisible(true)
             .EnableSound()
@@ -88,7 +91,7 @@ public partial class MixScrims
         if (votedMap == null)
         {
             logger.LogError("RegisterMapVote: Map not found in configuration: {Map}", mapDisplayName);
-            PrintMessageToPlayer(player, Core.Localizer["error.mapNotFound", mapDisplayName]);
+            PrintMessageToPlayer(player, Core.Localizer["error.map_not_found", mapDisplayName]);
             DisplayMapVotingMenu(player);
             return;
         }
@@ -116,7 +119,7 @@ public partial class MixScrims
             votes = 1;
         }
 
-        PrintMessageToPlayer(player, Core.Localizer["map.voteRegistered", playerName, votedMap.DisplayName, votes]);
+        PrintMessageToPlayer(player, Core.Localizer["announcement.map.voted", playerName, votedMap.DisplayName, votes]);
 
         CloseMenuForPlayer(player);
     }
@@ -167,10 +170,10 @@ public partial class MixScrims
             }
         }
 
-        matchState = MatchState.MapChosen;
+        mixScrimsService.SetMatchState(MatchState.MapChosen);
 
         VotedMap pickedMap = GetMostVotedMap();
-        PrintMessageToAllPlayers(Core.Localizer["map.mapChosen", pickedMap.Map.DisplayName, pickedMap.Votes]);
+        PrintMessageToAllPlayers(Core.Localizer["announcement.map.chosen", pickedMap.Map.DisplayName, pickedMap.Votes]);
         LoadSelectedMap(pickedMap.Map);
     }
 

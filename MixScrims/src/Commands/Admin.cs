@@ -1,10 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using SwiftlyS2.Core.Menus.OptionsBase;
-using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
-using SwiftlyS2.Shared.Menus;
-using System;
-using System.Linq;
+using MixScrims.Contract;
 
 namespace MixScrims;
 
@@ -19,12 +16,12 @@ public partial class MixScrims
 		if (admin == null)
 		{
 			logger.LogInformation("Mix state has been reset by Console");
-			PrintMessageToAllPlayers(Core.Localizer["command.mixReset", "Console"]);
+			PrintMessageToAllPlayers(Core.Localizer["command.mix_reset", "Console"]);
 		}
 		else
 		{
 			logger.LogInformation($"Mix state has been reset by {admin.Controller.PlayerName}");
-			PrintMessageToAllPlayers(Core.Localizer["command.mixReset", admin.Controller.PlayerName]);
+			PrintMessageToAllPlayers(Core.Localizer["command.mix_reset", admin.Controller.PlayerName]);
 		}
 
 		ResetPluginState();
@@ -36,23 +33,39 @@ public partial class MixScrims
 	public void OnForceMatchStart(ICommandContext context)
 	{
 		var admin = context.Sender;
+		var connectedPlayers = GetPlayers().Count;
+		
+		if (connectedPlayers < cfg.MinimumReadyPlayers)
+		{
+			logger.LogWarning($"OnForceMatchStart: Not enough players connected ({connectedPlayers}/{cfg.MinimumReadyPlayers})");
+			if (admin != null)
+			{
+				PrintMessageToPlayer(admin, Core.Localizer["error.not_enough_players", connectedPlayers, cfg.MinimumReadyPlayers]);
+			}
+			else
+			{
+				logger.LogWarning("Console: Not enough players to force start match");
+			}
+			return;
+		}
+		
 		if (context.IsSentByPlayer)
 		{
 			if (admin == null)
 			{
 				logger.LogInformation("Match started by force by Admin (null)");
-				PrintMessageToAllPlayers(Core.Localizer["command.forceMatchStart", "Admin"]);
+				PrintMessageToAllPlayers(Core.Localizer["command.force.match_start", "Admin"]);
 			}
 			else
 			{
 				logger.LogInformation($"Match started by force by {admin.Controller.PlayerName}");
-				PrintMessageToAllPlayers(Core.Localizer["command.forceMatchStart", admin.Controller.PlayerName]);
+				PrintMessageToAllPlayers(Core.Localizer["command.force.match_start", admin.Controller.PlayerName]);
 			}
 		}
 		else
 		{
 			logger.LogInformation("Match started by force by Console");
-			PrintMessageToAllPlayers(Core.Localizer["command.forceMatchStart", "Console"]);
+			PrintMessageToAllPlayers(Core.Localizer["command.force.match_start", "Console"]);
 		}
 
 		StartKnifeRound();
@@ -64,23 +77,41 @@ public partial class MixScrims
 	public void OnForceReady(ICommandContext context)
 	{
 		var admin = context.Sender;
+		var connectedPlayers = GetPlayers().Count;
+		
+		if (connectedPlayers < cfg.MinimumReadyPlayers)
+		{
+			logger.LogWarning($"OnForceReady: Not enough players connected ({connectedPlayers}/{cfg.MinimumReadyPlayers})");
+			if (admin != null)
+			{
+				PrintMessageToPlayer(admin, Core.Localizer["error.not_enough_players", connectedPlayers, cfg.MinimumReadyPlayers]);
+			}
+			else
+			{
+				logger.LogWarning("Console: Not enough players to force ready");
+			}
+			return;
+		}
+		
 		if (admin == null)
 		{
 			logger.LogInformation("Players were forced into ready state by force by Console");
-			PrintMessageToAllPlayers(Core.Localizer["command.forceReady", "Console"]);
+			PrintMessageToAllPlayers(Core.Localizer["command.force.ready", "Console"]);
 		}
 		else
 		{
 			logger.LogInformation($"Players were forced into ready state by force by {admin.Controller.PlayerName}");
-			PrintMessageToAllPlayers(Core.Localizer["command.forceReady", admin.Controller.PlayerName]);
+			PrintMessageToAllPlayers(Core.Localizer["command.force.ready", admin.Controller.PlayerName]);
 		}
 
-		if (matchState != MatchState.Warmup && matchState != MatchState.MapChosen)
+		var matchState = mixScrimsService.GetCurrentMatchState();
+
+        if (matchState != MatchState.Warmup && matchState != MatchState.MapChosen)
 		{
 			logger.LogWarning("OnForceReady: Invalid match state, must be MatchState.Warmup or MatchState.MapChosen");
 			if (admin != null)
 			{
-				PrintMessageToPlayer(admin, Core.Localizer["command.invalidState", "forceready"]);
+				PrintMessageToPlayer(admin, Core.Localizer["command.invalid_state", "forceready"]);
 			}
 			return;
 		}
@@ -96,10 +127,63 @@ public partial class MixScrims
 		}
 	}
 
-	///<summary>
-	///Prompts a list of players to choose a captain for chosen team
-	///</summary>
-	public void OnCaptain(ICommandContext context)
+    public void OnForceUnready(ICommandContext context)
+    {
+        var admin = context.Sender;
+        var connectedPlayers = GetPlayers().Count;
+        
+        if (connectedPlayers < cfg.MinimumReadyPlayers)
+        {
+            logger.LogWarning($"OnForceUnready: Not enough players connected ({connectedPlayers}/{cfg.MinimumReadyPlayers})");
+            if (admin != null)
+            {
+                PrintMessageToPlayer(admin, Core.Localizer["error.not_enough_players", connectedPlayers, cfg.MinimumReadyPlayers]);
+            }
+            else
+            {
+                logger.LogWarning("Console: Not enough players to force unready");
+            }
+            return;
+        }
+        
+        if (admin == null)
+        {
+            logger.LogInformation("Players were forced into unready state by force by Console");
+            PrintMessageToAllPlayers(Core.Localizer["command.force.unready", "Console"]);
+        }
+        else
+        {
+            logger.LogInformation($"Players were forced into unready state by force by {admin.Controller.PlayerName}");
+            PrintMessageToAllPlayers(Core.Localizer["command.force.unready", admin.Controller.PlayerName]);
+        }
+
+        var matchState = mixScrimsService.GetCurrentMatchState();
+
+        if (matchState != MatchState.Warmup && matchState != MatchState.MapChosen)
+        {
+            logger.LogWarning("OnForceUnready: Invalid match state, must be MatchState.Warmup or MatchState.MapChosen");
+            if (admin != null)
+            {
+                PrintMessageToPlayer(admin, Core.Localizer["command.invalid_state", "forceunready"]);
+            }
+            return;
+        }
+
+        var players = GetPlayers();
+        foreach (var player in players)
+        {
+            if (readyPlayers.Any(rp => rp.PlayerID == player.PlayerID))
+            {
+                logger.LogInformation("OnForceUnready: Adding players to ready list");
+                RemovePlayerFromReadyList(player, false);
+            }
+        }
+    }
+
+    ///<summary>
+    ///Prompts a list of players to choose a captain for chosen team
+    ///</summary>
+    public void OnCaptain(ICommandContext context)
 	{
 		var admin = context.Sender;
 		if (admin == null || !context.IsSentByPlayer)
@@ -108,21 +192,31 @@ public partial class MixScrims
 			return;
 		}
 
-		if (matchState == MatchState.Warmup
+		if (cfg.DisableCaptains)
+		{
+			if (cfg.DetailedLogging)
+				logger.LogInformation("OnCaptain: Captains are disabled in configuration.");
+			PrintMessageToPlayer(admin, Core.Localizer["error.captain.disabled"]);
+			return;
+		}
+
+        var matchState = mixScrimsService.GetCurrentMatchState();
+
+        if (matchState == MatchState.Warmup
 			|| matchState == MatchState.MapLoading
 			|| matchState == MatchState.MapChosen)
 		{
 
 			if (context.Args.Length < 1)
 			{
-				PrintMessageToPlayer(admin, Core.Localizer["error.InvalidArgs", "!captain <t/ct>"]);
+				PrintMessageToPlayer(admin, Core.Localizer["error.invalid_args", "!captain <t/ct>"]);
 				return;
 			}
 
 			var team = context.Args[0].ToLower();
 			if (team != "t" && team != "ct")
 			{
-				PrintMessageToPlayer(admin, Core.Localizer["error.InvalidArgs", "!captain <t/ct>"]);
+				PrintMessageToPlayer(admin, Core.Localizer["error.invalid_args", "!captain <t/ct>"]);
 				return;
 			}
 
@@ -138,7 +232,7 @@ public partial class MixScrims
 
 			var builder = Core.MenusAPI
 				.CreateBuilder()
-				.Design.SetMenuTitle(Core.Localizer["menu.captainPickTitle", team.ToUpper()])
+				.Design.SetMenuTitle(Core.Localizer["menu.captain_pick", team.ToUpper()])
 				.Design.SetMenuTitleVisible(true)
 				.Design.SetMenuFooterVisible(true)
 				.EnableSound()
@@ -179,7 +273,7 @@ public partial class MixScrims
         else
         {
 			logger.LogError("OnCaptain: Invalid match state \"{matchState}\", must be MatchState.Warmup/MapChosen/MapLoading", matchState);
-			PrintMessageToPlayer(admin, Core.Localizer["command.invalidState", "captain"]);
+			PrintMessageToPlayer(admin, Core.Localizer["command.invalid_state", "captain"]);
         }
     }
 
@@ -194,7 +288,7 @@ public partial class MixScrims
 			logger.LogError("OnGoToMap: No map name provided");
 			if (admin != null)
 			{
-				PrintMessageToPlayer(admin, Core.Localizer["error.InvalidArgs", "!map <map_name>, eg Mirage or de_mirage"]);
+				PrintMessageToPlayer(admin, Core.Localizer["error.invalid_args", "!map <map_name>, eg Mirage or de_mirage"]);
 			}
 			return;
 		}
@@ -205,7 +299,7 @@ public partial class MixScrims
 			logger.LogError("OnGoToMap: No map name provided");
 			if (admin != null)
 			{
-				PrintMessageToPlayer(admin, Core.Localizer["error.InvalidArgs", "!map <map_name>, eg Mirage or de_mirage"]);
+				PrintMessageToPlayer(admin, Core.Localizer["error.invalid_args", "!map <map_name>, eg Mirage or de_mirage"]);
 			}
 			return;
 		}
@@ -216,7 +310,7 @@ public partial class MixScrims
 			logger.LogError($"OnGoToMap: Map not found in configuration: {mapName}");
 			if (admin != null)
 			{
-				PrintMessageToPlayer(admin, Core.Localizer["error.mapNotFound", mapName]);
+				PrintMessageToPlayer(admin, Core.Localizer["error.map_not_found", mapName]);
 			}
 			return;
 		}
@@ -224,12 +318,12 @@ public partial class MixScrims
 		if (admin == null)
 		{
 			logger.LogInformation("Map changed by Console");
-			PrintMessageToAllPlayers(Core.Localizer["command.goToMap", "Console", map.DisplayName]);
+			PrintMessageToAllPlayers(Core.Localizer["command.go_to_map", "Console", map.DisplayName]);
 		}
 		else
 		{
 			logger.LogInformation($"Map changed by {admin.Controller.PlayerName}");
-			PrintMessageToAllPlayers(Core.Localizer["command.goToMap", admin.Controller.PlayerName, map.DisplayName]);
+			PrintMessageToAllPlayers(Core.Localizer["command.go_to_map", admin.Controller.PlayerName, map.DisplayName]);
 		}
 
 		LoadSelectedMap(map);

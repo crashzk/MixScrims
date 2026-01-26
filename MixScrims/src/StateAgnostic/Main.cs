@@ -1,18 +1,13 @@
 using Microsoft.Extensions.Logging;
-using SwiftlyS2.Shared;
-using SwiftlyS2.Shared.Events;
 using SwiftlyS2.Shared.Players;
-using SwiftlyS2.Shared.Plugins;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
+using MixScrims.Contract;
 
 namespace MixScrims;
 
 public sealed partial class MixScrims
 {
     private CancellationTokenSource? playerStatusTimer;
+    private CancellationTokenSource? playerStatusTimerCenterHtml;
     private CancellationTokenSource? commandRemindersTimer;
     private CancellationTokenSource? captainsAnnouncementsTimer;
 
@@ -35,6 +30,16 @@ public sealed partial class MixScrims
         );
         Core.Scheduler.StopOnMapChange(playerStatusTimer);
 
+        // Player ready status center html
+        if (cfg.ShowReadyStatusInCenterHtml)
+        {
+            playerStatusTimerCenterHtml = Core.Scheduler.RepeatBySeconds(
+                periodSeconds: 1,
+                task: () => DisplayReadyAndNotReadyPlayersInCenterHtml(1000)
+            );
+            Core.Scheduler.StopOnMapChange(playerStatusTimerCenterHtml);
+        }
+
         // Command reminders
         commandRemindersTimer = Core.Scheduler.RepeatBySeconds(
             periodSeconds: cfg.ChatAnnouncementTimers.CommandReminders,
@@ -49,16 +54,35 @@ public sealed partial class MixScrims
     /// </summary>
     private void CheckReadyPlayersToStart()
     {
-        logger.LogInformation("CheckReadyPlayersToStart: readyPlayers={ReadyCount} | Required={Required}", readyPlayers.Count, GetNumberOfPlayersRequiredToStart());
+        if (cfg.DetailedLogging)
+            logger.LogInformation("CheckReadyPlayersToStart: readyPlayers={ReadyCount} | Required={Required}", readyPlayers.Count, GetNumberOfPlayersRequiredToStart());
+
+        var matchState = mixScrimsService.GetCurrentMatchState();
+
         if (matchState == MatchState.Warmup && readyPlayers.Count >= GetNumberOfPlayersRequiredToStart())
         {
-            logger.LogInformation("CheckReadyPlayersToStart: Starting Map Voting Phase");
+            if (cfg.DetailedLogging)
+                logger.LogInformation("CheckReadyPlayersToStart: Starting Map Voting Phase");
+
+            if (cfg.SkipMapVoting)
+            {
+                if (cfg.DetailedLogging)
+                    logger.LogInformation("CheckReadyPlayersToStart: Skipping Map Voting Phase, using current map");
+                
+                mixScrimsService.SetMatchState(MatchState.MapChosen);
+                StartTeamPickingPhase();
+                return;
+            }
+            
+            if (cfg.DetailedLogging)
+                logger.LogInformation("CheckReadyPlayersToStart: Starting Map Voting Phase");
             StartMapVotingPhase();
         }
 
         if (matchState == MatchState.MapChosen && readyPlayers.Count >= GetNumberOfPlayersRequiredToStart())
         {
-            logger.LogInformation("CheckReadyPlayersToStart: Starting Team Picking Phase");
+            if (cfg.DetailedLogging)
+                logger.LogInformation("CheckReadyPlayersToStart: Starting Team Picking Phase");
             StartTeamPickingPhase();
         }
     }
@@ -71,13 +95,15 @@ public sealed partial class MixScrims
         var name = player.Controller?.PlayerName ?? $"#{player.PlayerID}";
         logger.LogInformation("AddPlayerToReadyList: called for {Player}", name);
 
+        var matchState = mixScrimsService.GetCurrentMatchState();
+
         if (matchState == MatchState.Warmup || matchState == MatchState.MapChosen)
         {
             if (readyPlayers.Any(p => p.PlayerID == player.PlayerID))
             {
                 if (announce)
                 {
-                    PrintMessageToPlayer(player, Core.Localizer["command.alreadyReady"]);
+                    PrintMessageToPlayer(player, Core.Localizer["command.ready.already_ready"]);
                 }
                 return;
             }
@@ -85,13 +111,16 @@ public sealed partial class MixScrims
             readyPlayers.Add(player);
             if (announce)
             {
-                PrintMessageToAllPlayers(Core.Localizer["command.setReady", name]);
+                PrintMessageToAllPlayers(Core.Localizer["command.ready", name]);
             }
             CheckReadyPlayersToStart();
+
+            if (cfg.ShowReadyStatusInScoreboard)
+                SetPlayerReadyStatusInScoreboard(player, true);
         }
         else
         {
-            PrintMessageToPlayer(player, Core.Localizer["command.invalidState", "ready"]);
+            PrintMessageToPlayer(player, Core.Localizer["command.invalid_state", "ready"]);
         }
     }
 
@@ -103,28 +132,34 @@ public sealed partial class MixScrims
         var name = player.Controller?.PlayerName ?? $"#{player.PlayerID}";
         logger.LogInformation("RemovePlayerFromReadyList: called for {Player}", name);
 
+        var matchState = mixScrimsService.GetCurrentMatchState();
+
         if (matchState == MatchState.Warmup || matchState == MatchState.MapChosen)
         {
             var existing = readyPlayers.FirstOrDefault(p => p.PlayerID == player.PlayerID);
-            if (existing != null)
+
+            if (existing == null)
             {
                 if (announce)
                 {
-                    PrintMessageToAllPlayers(Core.Localizer["command.setUnready", name]);
+                    PrintMessageToPlayer(player, Core.Localizer["command.unready.not_ready"]);
                 }
-                readyPlayers.Remove(existing);
-                CheckReadyPlayersToStart();
                 return;
             }
 
             if (announce)
             {
-                PrintMessageToPlayer(player, Core.Localizer["command.alreadyUnready"]);
+                PrintMessageToAllPlayers(Core.Localizer["command.unready", name]);
             }
+            readyPlayers.Remove(existing);
+            CheckReadyPlayersToStart();
+
+            if (cfg.ShowReadyStatusInScoreboard)
+                SetPlayerReadyStatusInScoreboard(player, false);
         }
         else
         {
-            PrintMessageToPlayer(player, Core.Localizer["command.invalidState", "unready"]);
+            PrintMessageToPlayer(player, Core.Localizer["command.invalid_state", "unready"]);
         }
     }
 
@@ -136,6 +171,8 @@ public sealed partial class MixScrims
 		if (cfg.DetailedLogging)
 			logger.LogInformation("LoadSelectedMap: Loading map {Map}", map.MapName);
 
+        var matchState = mixScrimsService.GetCurrentMatchState();
+
         if (matchState == MatchState.MapLoading)
         {
             ScheduleMapLoadingAnnouncement(map);
@@ -146,8 +183,8 @@ public sealed partial class MixScrims
         var loadMapToken = Core.Scheduler.DelayBySeconds(5, () => LoadMap(map));
         Core.Scheduler.StopOnMapChange(loadMapToken);
 
-        matchState = MatchState.MapLoading;
-        PrintMessageToAllPlayers(Core.Localizer["map.changingMap", map.DisplayName]);
+        mixScrimsService.SetMatchState(MatchState.MapLoading);
+        PrintMessageToAllPlayers(Core.Localizer["announcement.map.changing", map.DisplayName]);
         ScheduleMapLoadingAnnouncement(map);
     }
 
@@ -179,9 +216,11 @@ public sealed partial class MixScrims
 
         var token = Core.Scheduler.DelayBySeconds(15, () =>
         {
+            var matchState = mixScrimsService.GetCurrentMatchState();
+
             if (matchState == MatchState.MapLoading)
             {
-                PrintMessageToAllPlayers(Core.Localizer["map.mapLoading", map.DisplayName]);
+                PrintMessageToAllPlayers(Core.Localizer["announcement.map.loading", map.DisplayName]);
                 LoadSelectedMap(map);
             }
         });
@@ -253,11 +292,11 @@ public sealed partial class MixScrims
         {
             logger.LogError("SetCtCaptain: picked player is invalid");
             var localizer = Core.Translation.GetPlayerLocalizer(admin);
-            admin.SendChat(Core.Localizer["serverPrefix"] + " " + Core.Localizer["error.invalidPlayerPicked", pickedPlayerName]);
+            admin.SendChat(Core.Localizer["server_prefix"] + " " + Core.Localizer["error.invalid_player_picked", pickedPlayerName]);
             return;
         }
 
-        PrintMessageToAllPlayers(Core.Localizer["command.captainCt", admin.Controller?.PlayerName ?? $"#{admin.PlayerID}", player.Controller?.PlayerName ?? $"#{player.PlayerID}"]);
+        PrintMessageToAllPlayers(Core.Localizer["command.captain.ct", admin.Controller?.PlayerName ?? $"#{admin.PlayerID}", player.Controller?.PlayerName ?? $"#{player.PlayerID}"]);
         PickCtCaptain(player);
 
         CloseMenuForPlayer(admin);
@@ -274,11 +313,11 @@ public sealed partial class MixScrims
         {
             logger.LogError("SetTCaptain: picked player is invalid");
             var localizer = Core.Translation.GetPlayerLocalizer(admin);
-            admin.SendChat(Core.Localizer["serverPrefix"] + " " + Core.Localizer["error.invalidPlayerPicked", pickedPlayerName]);
+            admin.SendChat(Core.Localizer["server_prefix"] + " " + Core.Localizer["error.invalid_player_picked", pickedPlayerName]);
             return;
         }
 
-        PrintMessageToAllPlayers(Core.Localizer["command.captainT", admin.Controller?.PlayerName ?? $"#{admin.PlayerID}", player.Controller?.PlayerName ?? $"#{player.PlayerID}"]);
+        PrintMessageToAllPlayers(Core.Localizer["command.captain.t", admin.Controller?.PlayerName ?? $"#{admin.PlayerID}", player.Controller?.PlayerName ?? $"#{player.PlayerID}"]);
         PickTCaptain(player);
 
         CloseMenuForPlayer(admin);
@@ -302,6 +341,8 @@ public sealed partial class MixScrims
                 logger.LogInformation("PunishOnLeave: player leave punishment is disabled in config");
             return;
         }
+
+        var matchState = mixScrimsService.GetCurrentMatchState();
 
         if (cfg.PlayerLeavePunishment.Sensitivity == 0)
         {
@@ -354,6 +395,10 @@ public sealed partial class MixScrims
         }
     }
 
+    /// <summary>
+    /// Initiates a punishment action against the specified player if they have left the game and have not rejoined
+    /// within the configured wait period.
+    /// </summary>
     private void PunishPlayer(IPlayer? player)
     {
         if (player == null)
@@ -401,5 +446,26 @@ public sealed partial class MixScrims
                 });
             });
         }
+    }
+
+    /// <summary>
+    /// Stops all active announcement timers, preventing further scheduled announcements from occurring.
+    /// </summary>
+    private void StopAllAnnouncmentTimers()
+    {
+        commandRemindersTimer?.Cancel();
+        playerStatusTimer?.Cancel();
+        playerStatusTimerCenterHtml?.Cancel();
+        captainsAnnouncementsTimer?.Cancel();
+    }
+
+    /// <summary>
+    /// Stops and cancels all timers related to pre-match announcements.
+    /// </summary>
+    private void StopPreMatchAnnouncementTimers()
+    {
+        playerStatusTimer?.Cancel();
+        playerStatusTimerCenterHtml?.Cancel();
+        captainsAnnouncementsTimer?.Cancel();
     }
 }

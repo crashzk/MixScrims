@@ -2,6 +2,8 @@ using Microsoft.Extensions.Logging;
 using SwiftlyS2.Shared.GameEventDefinitions;
 using SwiftlyS2.Shared.GameEvents;
 using SwiftlyS2.Shared.Misc;
+using MixScrims.Contract;
+using SwiftlyS2.Shared.Events;
 
 namespace MixScrims;
 
@@ -10,17 +12,32 @@ public partial class MixScrims
     private List<MapDetails> playedMaps { get; set; } = [];
 
     /// <summary>
-    /// Adds the specified map to the list of played maps if the match state allows it.
+    /// Registers listeners for events during the MapChosen state.
     /// </summary>
-    [GameEventHandler(HookMode.Pre)]
-    public HookResult AddPickedMapToPlayedMaps(EventRoundPrestart @event)
+    private void RegisterMapChosenListeners()
     {
-        HandleMapChosenNewMapLoad();
-        return HookResult.Continue;
+        Core.Event.OnMapLoad += AddPickedMapToPlayedMaps;
     }
 
+    /// <summary>
+    /// Adds the specified map to the list of played maps if the match state allows it.
+    /// </summary>
+    public void AddPickedMapToPlayedMaps(IOnMapLoadEvent mapName)
+    {
+        if (cfg.DetailedLogging)
+            logger.LogInformation($"AddPickedMapToPlayedMaps: OnMapLoad event fired for map {mapName.MapName}");
+        HandleMapChosenNewMapLoad();
+    }
+
+    /// <summary>
+    /// Handles the logic required when a new map is loaded after a map has been chosen in the match flow.
+    /// </summary>
     private void HandleMapChosenNewMapLoad()
     {
+        var matchState = mixScrimsService.GetCurrentMatchState();
+        if (cfg.DetailedLogging)
+            logger.LogInformation($"HandleMapChosenNewMapLoad: Current match state is {matchState}");
+
         if (matchState != MatchState.MapLoading)
         {
             logger.LogWarning($"HandleMapChosenNewMapLoad: Ignored map start event because match state is {matchState}");
@@ -28,14 +45,23 @@ public partial class MixScrims
         }
 
         if (cfg.DetailedLogging)
-            logger.LogInformation("Clearing ready players and executing warmup config");
+            logger.LogInformation("HandleMapChosenNewMapLoad: Clearing ready players and executing warmup config");
 
         readyPlayers.Clear();
 
-        matchState = MatchState.MapChosen;
+        mixScrimsService.SetMatchState(MatchState.MapChosen);
+        if (cfg.DetailedLogging)
+            logger.LogInformation("HandleMapChosenNewMapLoad: Match state changed to MapChosen");
 
         var warmupToken = Core.Scheduler.DelayBySeconds(5, LoadWarmupConfig);
         Core.Scheduler.StopOnMapChange(warmupToken);
+
+        if (cfg.DisableCaptains)
+        {
+            if (cfg.DetailedLogging)
+                logger.LogInformation("HandleMapChosenNewMapLoad: Captains are disabled in configuration.");
+            return;
+        }
 
         var captainAnnouncementToken = Core.Scheduler.DelayBySeconds(30, () =>
         {
