@@ -1,7 +1,7 @@
 ﻿<div align="center">
   <img src="https://pan.samyyc.dev/s/VYmMXE" />
   <h1><strong>MixScrims</strong></h1>
-  <p>FACEIT-style PUG matches for CS2 - managed entirely in-game, no external tools required</p>
+  <p>Faceit-style PUG matches for CS2 - managed entirely in-game, no external tools required</p>
 </div>
 
 <p align="center">
