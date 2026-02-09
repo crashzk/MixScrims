@@ -5,12 +5,31 @@
 MixScrims is a **SwiftlyS2 plugin** that implements FACEIT-style PUG matches with in-game management. It's a **state machine-driven plugin** that progresses through match phases: Warmup → MapVoting → MapChosen → PickingTeam → KnifeRound → PickingStartingSide → Match.
 
 - **Plugin Framework**: [SwiftlyS2](https://swiftlys2.net) - CS2 server modification framework for .NET 10.0
+- **Plugin Version**: 1.3.0
 - **Architecture**: State-based partial classes with shared service layer
-- **Key Components**: Main plugin (`MixScrims`), Contract API (`MixScrims.Contract`), state handlers, shared services
+- **Key Components**: Main plugin (`MixScrims`), Contract API (`MixScrims.Contract`), state handlers, shared services, announcement system
 
 **Documentation:**
 - [Project Wiki](https://github.com/shmitzas/MixScrims-SwiftlyS2/wiki) - Comprehensive guides for installation, configuration, features, and contributing
 - [SwiftlyS2 API Reference](https://swiftlys2.net/llms-full.txt) - Framework API documentation
+- [PR #27 - v1.3.0 QOL Improvements](https://github.com/shmitzas/MixScrims-SwiftlyS2/pull/27) - Latest feature updates including GlobalServerPrefix, ready status displays, expanded API, player punishment system
+
+**Jump to:** [Quick Reference](#quick-reference) • [Match Flow](#match-flow-overview) • [Architecture](#critical-architecture-patterns) • [Development](#development-workflows) • [Config](#config-features-by-category) • [API](#shared-api-pattern) • [Commands](#available-commands) • [Testing](#testing--debugging) • [Pitfalls](#common-pitfalls)
+
+## Quick Reference
+
+**When you need to:**
+- **Modify state logic**: Check `src/States/{StateName}/` (Main.cs or Events.cs)
+- **Add cross-state features**: Edit `src/StateAgnostic/Main.cs` or `Announcements.cs`
+- **Add new commands**: Update `src/Commands/` + `Config.Commands` dictionary
+- **Extend public API**: Add methods to `IMixScrims.cs` + implement in `MixScrimsService.cs`
+- **Change announcements**: Modify `resources/translations/{lang}.jsonc`
+- **Adjust match flow**: Edit CFG files in `csgo_configs/` + config.jsonc
+
+**Critical Rules:**
+- Always use `mixScrimsService.SetMatchState()` - never modify state directly
+- Check player validity: `if (!player.IsValid || !player.IsConnected || player.IsBot)`
+- Store scheduler tokens: `Core.Scheduler.StopOnMapChange(token)`
 
 ## Match Flow Overview
 
@@ -23,7 +42,7 @@ MixScrims is a **SwiftlyS2 plugin** that implements FACEIT-style PUG matches wit
 - **Team Picking**: Captains alternate picking players via menu (random captain picks first) → Knife Round when complete
 - **Knife Round**: Knife-only round, winning team captain gets menu → Side Selection
 - **Side Selection**: Winner chooses `!stay` or `!switch` sides → Match starts with `match_start.cfg`
-- **Match**: Standard MR12 competitive, team timeouts (vote-based, 3 per team), surrender voting → Ended → resets to Warmup
+- **Match**: Standard MR12 competitive, team timeouts (vote-based, 3 per team), surrender voting → Surrender (if team votes) OR Ended → resets to Warmup
 
 **Config Shortcuts:** `SkipMapVoting` (uses current map), `SkipTeamPicking` (random teams), `DisableCaptains` (team voting for side selection)
 
@@ -32,9 +51,25 @@ MixScrims is a **SwiftlyS2 plugin** that implements FACEIT-style PUG matches wit
 ### Partial Class Structure
 The main `MixScrims` class is split across **multiple partial class files** organized by concern:
 - `src/Main.cs` - Core plugin lifecycle, DI setup, command registration
-- `src/StateAgnostic/Main.cs` - Cross-state logic (ready checks, team management)
-- `src/States/{StateName}/Main.cs` - State-specific logic (e.g., `KnifeRound/Main.cs`)
+- `src/StateAgnostic/Main.cs` - Cross-state logic (ready checks, team management, player punishment)
+- `src/StateAgnostic/Announcements.cs` - Ready status announcements, scoreboard/center HTML display
+- `src/StateAgnostic/Events.cs` - Cross-state event handlers
+- `src/States/{StateName}/Main.cs` - State-specific logic (when needed)
 - `src/States/{StateName}/Events.cs` - State-specific event handlers
+
+**State Folder Structure:**
+
+| State | Main.cs | Events.cs | Purpose |
+|-------|---------|-----------|---------|  
+| KnifeRound | ✅ | ✅ | Knife round logic & round end handling |
+| MapChosen | ❌ | ✅ | Post-map-vote ready check |
+| MapVoting | ✅ | ❌ | Vote collection & map selection |
+| Match | ✅ | ✅ | Active match logic & round events |
+| PickingTeam | ✅ | ❌ | Captain team selection menus |
+| Reset | ✅ | ❌ | Plugin state reset & cleanup |
+| Surrender | ✅ | ❌ | Team surrender voting |
+| Timeout | ✅ | ✅ | Pause/resume logic & timer |
+| Warmup | ✅ | ✅ | Initial ready check & player join handling |
 
 When modifying functionality, **always check if related code exists in other partial files** before adding new methods.
 
@@ -90,6 +125,32 @@ CFG files **must exist on CS2 server** at `csgo/cfg/mixscrims/`. Environment-spe
 
 ## Development Workflows
 
+### Common Development Tasks
+
+**Adding a New Command:**
+1. Add handler method to `src/Commands/Admin.cs` or `Player.cs`
+2. Register in `commandHandlers` dict in `Main.cs` `RegisterCommands()`
+3. Add config entry to `Config.Commands` with aliases & permissions
+4. Add localization key to `resources/translations/en.jsonc`
+
+**Adding State-Specific Behavior:**
+1. Navigate to `src/States/{StateName}/`
+2. Add logic to `Main.cs` (if it exists) or create `Events.cs`
+3. For events, use `[GameEventHandler]` attribute
+4. Register listeners in `Register{StateName}Listeners()` in Main.cs
+
+**Modifying Ready System Display:**
+- **Chat announcements**: Edit `PrintReadyAndNotReadyPlayers()` in `StateAgnostic/Announcements.cs`
+- **Scoreboard**: Edit `ShowReadyAndNotReadyPlayersInScoreboard()` in same file
+- **Center HTML**: Edit `DisplayReadyAndNotReadyPlayersInCenterHtml()` in same file
+- **Localization**: Update keys in `resources/translations/en.jsonc`
+
+**Extending the Public API:**
+1. Add method signature to `MixScrims.Contract/IMixScrims.cs`
+2. Implement method in `MixScrims/src/Shared/MixScrimsService.cs`
+3. Add internal logic to appropriate partial class file
+4. Update this documentation's API section
+
 ### Building
 ```powershell
 # Standard build
@@ -117,10 +178,11 @@ Output: `MixScrims/build/publish/MixScrims/` contains deployable plugin files.
 ## Project-Specific Conventions
 
 ### Player Management
-Players are tracked via `IPlayer` from SwiftlyS2. **Three lifecycle stages**:
+Players are tracked via `IPlayer` from SwiftlyS2. **Four lifecycle stages**:
 1. `readyPlayers` - Warmup ready check (`!ready` typed)
 2. `pickedCtPlayers`/`pickedTPlayers` - Captain selections during team picking
 3. `playingCtPlayers`/`playingTPlayers` - Active match rosters (knife → match end)
+4. `playersWaitingForPunishment` - Players queued for punishment after disconnect
 
 Lists clear at phase transitions (e.g., `readyPlayers.Clear()` when knife starts). **Always check player validity**:
 ```csharp
@@ -129,6 +191,8 @@ if (!player.IsValid || !player.IsConnected || player.IsBot) return;
 
 **Captain Selection:** Volunteers (`!volunteer_captain t/ct` if enabled) take priority, else random from ready players. Team names set to captain names unless `DisableCaptains` is true.
 
+**Punishment System:** When `PunishPlayerLeaves` is enabled, players who disconnect during active phases are added to `playersWaitingForPunishment`. After `WaitBeforePunishmentSeconds` (default 300s), the configured `ServerCommand` executes (e.g., `sw_ban {steamId} {duration} {reason}`). Sensitivity levels determine which match states trigger punishment.
+
 ### Timer/Scheduler Pattern
 Use `Core.Scheduler` (ISchedulerService) for async operations:
 ```csharp
@@ -136,6 +200,14 @@ var token = Core.Scheduler.DelayBySeconds(5, () => StartMatch());
 Core.Scheduler.StopOnMapChange(token); // Auto-cleanup on map change
 ```
 Available methods: `DelayBySeconds()`, `RepeatBySeconds()`, `NextTick()`, `NextWorldUpdate()`. **Always store CancellationTokenSource** for manual cleanup.
+
+**Announcement Timers:** Plugin uses repeating timers for periodic announcements:
+- `playerStatusTimer` - Prints ready/not ready status to chat (interval: `cfg.ChatAnnouncementTimers.PlayersReadyStatus`, default 30s)
+- `playerStatusTimerCenterHtml` - Updates center HTML ready display every 1s (only if `ShowReadyStatusInCenterHtml` enabled)
+- `commandRemindersTimer` - Shows command help reminders (interval: `cfg.ChatAnnouncementTimers.CommandReminders`, default 320s)
+- `captainsAnnouncementsTimer` - Announces captain names (interval: `cfg.ChatAnnouncementTimers.CaptainsAnnouncements`, default 30s)
+
+All timers are created in `StartAnnouncementTimers()` and automatically stopped on map change.
 
 ### Logging Strategy
 - `cfg.DetailedLogging` flag enables verbose logs
@@ -146,20 +218,101 @@ Available methods: `DelayBySeconds()`, `RepeatBySeconds()`, `NextTick()`, `NextW
 `Team` enum: `None = 0, Spectator = 1, T = 2, CT = 3`
 **Never assume numeric values** - always use enum names.
 
-### Config Features Explained
-- **FaceitLikeDamageControl**: Reflects friendly fire damage back to shooter
-- **MoveOverflowPlayersToSpec**: Auto-moves players beyond 10 to spectator during team picking
-- **RequireAllConnectedPlayersToBeReady**: If true, ALL connected players must ready (not just `MinimumReadyPlayers`)
-- **DisallowVotePreviousMaps**: Excludes N recently played maps from voting pool
-- **TestMode**: Loads `staging_overrides.cfg` (adds bots, lower requirements) instead of `production_overrides.cfg`
+### Config Features by Category
+
+**Display & UI:**
+- `GlobalServerPrefix` - Customizable message prefix (default: `[ [darkred]MixScrims [default]]`)
+- `ShowReadyStatusInScoreboard` - Scoreboard ready/not ready prefix
+- `ShowReadyStatusInCenterHtml` - Center HTML overlay (1s updates)
+
+**Match Flow Control:**
+- `SkipMapVoting` - Use current map, skip voting phase
+- `SkipTeamPicking` - Random teams instead of captain selection
+- `DisableCaptains` - Team voting for side selection instead of captain menu
+- `AllowVolunteerCaptains` - Players can volunteer with `!volunteer_captain`
+
+**Player Management:**
+- `MinimumReadyPlayers` - Minimum to start (default 10)
+- `RequireAllConnectedPlayersToBeReady` - ALL players must ready (not just minimum)
+- `MoveOverflowPlayersToSpec` - Auto-move beyond 10 players to spectator
+- `PunishPlayerLeaves` - Punish disconnecting players (see below)
+- `PreventNotPickedPlayersFromJoiningOngoingMatch` - Block non-picked players from joining
+
+**Gameplay:**
+- `FaceitLikeDamageControl` - Reflect friendly fire damage to shooter
+- `Timeouts` - Number of timeouts per team (default 3)
+- `TimeoutDurationSeconds` - Timeout length (default 60s)
+
+**Map Settings:**
+- `DisallowVotePreviousMaps` - Exclude N recent maps from voting
+- `DefaultVoteTimeSeconds` - Map voting duration (default 30s)
+
+**Announcement Timers:**
+- `ChatAnnouncementTimers.PlayersReadyStatus` - Ready status chat interval (default 30s)
+- `ChatAnnouncementTimers.CaptainsAnnouncements` - Captain announcement interval (default 30s)
+- `ChatAnnouncementTimers.CommandReminders` - Command help interval (default 320s)
+
+**Environment:**
+- `TestMode` - Loads `staging_overrides.cfg` (bots, lower reqs), sets PluginState to Staging
+- `DetailedLogging` - Verbose debug logs
+
+**Player Leave Punishment:**
+- `PunishPlayerLeaves` - Enable/disable punishment system
+- `PlayerLeavePunishment.Sensitivity` - Which states trigger punishment:
+  - `0` = Match/Timeout only (lenient)
+  - `1` = + KnifeRound/PickingStartingSide (moderate)
+  - `2` = + PickingTeam (strict)
+- `PlayerLeavePunishment.ServerCommand` - Command template (e.g., `sw_ban {steamId} {duration} {reason}`)
+- `PlayerLeavePunishment.BanDurationMinutes` - Ban length (default 15)
+- `PlayerLeavePunishment.BanReason` - Reason shown to player
+- `PlayerLeavePunishment.WaitBeforePunishmentSeconds` - Grace period before punishment (default 300s)
 
 ## Key Files Reference
 
-- [MixScrims/src/Main.cs](MixScrims/src/Main.cs) - Plugin entry point, DI, lifecycle
-- [MixScrims/src/StateAgnostic/Main.cs](MixScrims/src/StateAgnostic/Main.cs) - Ready system, team logic
-- [MixScrims/src/Shared/Config.cs](MixScrims/src/Shared/Config.cs) - Configuration model
-- [MixScrims.Contract/MatchState.cs](MixScrims.Contract/MatchState.cs) - State enum
-- [MixScrims/resources/translations/en.jsonc](MixScrims/resources/translations/en.jsonc) - Localization keys
+**Core Components:**
+- [MixScrims/src/Main.cs](MixScrims/src/Main.cs) - Plugin entry point (v1.3.0), DI, lifecycle, command registration
+- [MixScrims/src/StateAgnostic/Main.cs](MixScrims/src/StateAgnostic/Main.cs) - Ready system, team logic, player punishment, timers
+- [MixScrims/src/StateAgnostic/Announcements.cs](MixScrims/src/StateAgnostic/Announcements.cs) - Ready announcements, scoreboard/center HTML display
+- [MixScrims/src/StateAgnostic/Events.cs](MixScrims/src/StateAgnostic/Events.cs) - Cross-state event handlers
+- [MixScrims/src/Shared/Config.cs](MixScrims/src/Shared/Config.cs) - Configuration model (GlobalServerPrefix, punishment settings, display options)
+- [MixScrims/src/Shared/MixScrimsService.cs](MixScrims/src/Shared/MixScrimsService.cs) - API service implementation
+- [MixScrims/src/Shared/Helpers.cs](MixScrims/src/Shared/Helpers.cs) - Utility functions
+
+**Contract API:**
+- [MixScrims.Contract/IMixScrims.cs](MixScrims.Contract/IMixScrims.cs) - Public API interface (67 methods)
+- [MixScrims.Contract/MatchState.cs](MixScrims.Contract/MatchState.cs) - Match state enum
+- [MixScrims.Contract/PluginState.cs](MixScrims.Contract/PluginState.cs) - Plugin state enum (Staging/Production)
+
+**Commands:**
+- [MixScrims/src/Commands/Admin.cs](MixScrims/src/Commands/Admin.cs) - Admin command handlers
+- [MixScrims/src/Commands/Player.cs](MixScrims/src/Commands/Player.cs) - Player command handlers
+
+**Localization:**
+- [MixScrims/resources/translations/en.jsonc](MixScrims/resources/translations/en.jsonc) - English localization keys
+- [MixScrims/resources/translations/pt-BR.jsonc](MixScrims/resources/translations/pt-BR.jsonc) - Portuguese (Brazil) localization
+
+## Available Commands
+
+**Admin Commands** (require `managemix` permission):
+- `!mix_reset` / `!reset` - Reset plugin state to warmup
+- `!mix_start` / `!start` - Force start match
+- `!forceready` / `!fr` - Force all players ready
+- `!forceunready` / `!fur` - Force all players unready
+- `!captain <name> <t/ct>` - Set captain manually
+- `!map <mapname>` - Change to specific map
+- `!maps` - List voteable maps
+- `!maplist_all` - List all configured maps
+
+**Player Commands:**
+- `!ready` / `!r` - Mark yourself ready
+- `!unready` / `!u` / `!ur` - Mark yourself not ready
+- `!revote` / `!rv` - Change map vote
+- `!timeout` / `!pause` - Vote for team timeout
+- `!surrender` / `!gg` - Vote to surrender
+- `!invite` / `!inv` - Send Discord invite
+- `!stay` / `!st` - Stay on current side (knife winner)
+- `!switch` / `!swap` - Switch sides (knife winner)
+- `!volunteer_captain <t/ct>` - Volunteer as captain (if `AllowVolunteerCaptains` enabled)
 
 ## Integration Points
 
@@ -171,8 +324,24 @@ interfaceManager.AddSharedInterface<IMixScrims, MixScrimsService>("MixScrims.API
 
 // Consumer (other plugins)
 var mixScrims = interfaceManager.GetSharedInterface<IMixScrims>("MixScrims.API");
-var state = mixScrims.GetCurrentMatchState();
+var matchState = mixScrims.GetCurrentMatchState();
+var pluginState = mixScrims.GetCurrentPluginState(); // Staging or Production
+mixScrims.AddPlayerToPickedCtPlayers(steamId);
+mixScrims.KickNotPlayingPlayers("Not participating");
 ```
+
+**Extended API Methods** (v1.3.0):
+- **State Management**: `GetCurrentMatchState()`, `SetMatchState()`, `GetCurrentPluginState()`, `SetPluginState()`
+- **Team Names**: `SetCounterTerroristsTeamName()`, `SetTerroristsTeamName()`
+- **Phase Control**: `StartWarmup()`, `StartMapVoting()`, `StartTeamPicking()`, `StartKnifeRound()`, `StartMatch()`, `CancelMatch()`
+- **Timeout/Surrender**: `StartTimeoutCt()`, `StartTimeoutT()`, `StopTimeout()`, `SurrenderCt()`, `SurrenderT()`
+- **Map Control**: `ChangeMap(mapName, workshopId)`
+- **Ready System**: `ForceAllPlayersToReady()`, `ForceAllPlayersToUnready()`
+- **Picked Players**: `GetPickedCtPlayers()`, `GetPickedTPlayers()`, `AddPlayerToPickedCtPlayers()`, `AddPlayerToPickedTPlayers()`, `RemovePlayerFromPickedCtPlayers()`, `RemovePlayerFromPickedTPlayers()`
+- **Playing Players**: `GetPlayingCtPlayers()`, `GetPlayingTPlayers()`, `AddPlayerToPlayingCtPlayers()`, `AddPlayerToPlayingTPlayers()`, `RemovePlayerFromPlayingCtPlayers()`, `RemovePlayerFromPlayingTPlayers()`
+- **Punishment System**: `GetPlayersWaitingForPunishment()`, `AddPlayerToWaitingForPunishmentList()`, `RemovePlayerFromWaitingForPunishmentList()`
+- **Captain Management**: `SetCtCaptain(steamId)`, `SetTCaptain(steamId)`
+- **Player Control**: `KickNotPlayingPlayers(reason)`, `KickNotPickedPlayers(reason)`, `PreventNewPlayersJoining(bool)`
 
 ### Discord Webhooks
 Optional Discord notifications via `DiscordWebHook.cs` - sends formatted messages on player invite commands. Configured in `Config.DiscordInviteWebhooks`.
