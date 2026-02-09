@@ -5,6 +5,7 @@ public class Config
     // Debug settings
     public bool TestMode { get; set; } = false;
     public bool DetailedLogging { get; set; } = true;
+    public string GlobalServerPrefix { get; set; } = "[ [darkred]MixScrims [default]]";
 
     // Discord invite settings
     public List<DiscordInvite> DiscordInviteWebhooks { get; set; } = [
@@ -27,6 +28,7 @@ public class Config
     public int Timeouts { get; set; } = 3;
 
     // Niche settings
+    public bool PreventNotPickedPlayersFromJoiningOngoingMatch { get; set; } = false;
     public bool SkipTeamPicking { get; set; } = false;
     public bool AllowVolunteerCaptains { get; set; } = false;
     public bool SkipMapVoting { get; set; } = false;
