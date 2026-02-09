@@ -6,9 +6,22 @@ namespace MixScrims;
 public sealed partial class MixScrims
 {
     /// <summary>
+    /// Retrieves the server prefix to be used for command recognition or display.
+    /// </summary>
+    internal string GetServerPrefix()
+    {
+        var serverPrefix = cfg.GlobalServerPrefix;
+        if (string.IsNullOrEmpty(serverPrefix))
+        {
+            serverPrefix = Core.Localizer["server_prefix"];
+        }
+        return serverPrefix;
+    }
+
+    /// <summary>
     /// Prints a message to a specified player.
     /// </summary>
-    private void PrintMessageToPlayer(IPlayer? player, string message)
+    internal void PrintMessageToPlayer(IPlayer? player, string message)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -18,20 +31,19 @@ public sealed partial class MixScrims
 
         Core.Scheduler.NextTick(() =>
         {
-             if (player == null || !player.IsValid)
+            if (player == null || !player.IsValid)
             {
                 logger.LogDebug("PrintMessageToPlayer: target is not a player entity anymore");
                 return;
             }
-
-            player.SendChat(Core.Localizer["server_prefix"] + " " + message);
+            player.SendChat(GetServerPrefix() + " " + message);
         });
     }
 
     /// <summary>
     /// Prints a message to a list of specified players.
     /// </summary>
-    private void PrintMessageToCertainPlayers(List<IPlayer> players, string message)
+    internal void PrintMessageToCertainPlayers(List<IPlayer> players, string message)
     {
         if (players == null)
         {
@@ -47,7 +59,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Prints a message to all players in the server.
     /// </summary>
-    private void PrintMessageToAllPlayers(string message)
+    internal void PrintMessageToAllPlayers(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -57,14 +69,14 @@ public sealed partial class MixScrims
 
         Core.Scheduler.NextTick(() =>
         {
-            Core.PlayerManager.SendChat(Core.Localizer["server_prefix"] + " " + message);
+            Core.PlayerManager.SendChat(GetServerPrefix() + " " + message);
         });
     }
 
     /// <summary>
     /// Sends a message to all players in the specified team.
     /// </summary>
-    private void PrintMessageToTeam(Team team, string message)
+    internal void PrintMessageToTeam(Team team, string message)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -79,18 +91,18 @@ public sealed partial class MixScrims
     /// <summary>
     /// Checks if the player is valid (not null, has a controller, and is on a valid team).
     /// </summary>
-    private bool IsPlayerValid(IPlayer? player)
+    internal bool IsPlayerValid(IPlayer? player)
     {
         if (player != null && player.IsValid)
             return true;
-        
+
         return false;
     }
 
     /// <summary>
     /// Determines whether the specified player is a bot.
     /// </summary>
-    private bool IsBot(IPlayer? player)
+    internal bool IsBot(IPlayer? player)
     {
         if (!IsPlayerValid(player))
             return false;
@@ -100,7 +112,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Returns a list of all valid players.
     /// </summary>
-    private List<IPlayer> GetPlayers()
+    internal List<IPlayer> GetPlayers()
     {
         return Core.PlayerManager.GetAllPlayers().Where(IsPlayerValid).ToList()!;
     }
@@ -108,7 +120,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Returns a list of players currently playing (CT or T).
     /// </summary>
-    private List<IPlayer> GetPlayingPlayers()
+    internal List<IPlayer> GetPlayingPlayers()
     {
         return Core.PlayerManager
             .GetAllPlayers()
@@ -122,7 +134,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Returns a list of players for a specified team.
     /// </summary>
-    private List<IPlayer> GetPlayersInTeam(Team team)
+    internal List<IPlayer> GetPlayersInTeam(Team team)
     {
         var teamNum = (int)team;
         var players = GetPlayingPlayers();
@@ -138,7 +150,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Returns a list of players who haven't readied up yet.
     /// </summary>
-    private List<IPlayer> GetNotReadyPlayers()
+    internal List<IPlayer> GetNotReadyPlayers()
     {
         var allPlayers = GetPlayers();
         if (allPlayers.Count == 0)
@@ -150,7 +162,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Returns a list of maps that can be voted for.
     /// </summary>
-    private List<MapDetails> GetMapsToVote()
+    internal List<MapDetails> GetMapsToVote()
     {
         return cfg.Maps
             .Where(m => m.CanBeVoted && !playedMaps.Any(pm => pm.MapName == m.MapName)).ToList();
@@ -159,7 +171,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Determines the number of players required to start the game.
     /// </summary>
-    private int GetNumberOfPlayersRequiredToStart()
+    internal int GetNumberOfPlayersRequiredToStart()
     {
         int totalPlayers = GetPlayers().Count;
         if (cfg.RequireAllConnectedPlayersToBeReady)
@@ -175,16 +187,21 @@ public sealed partial class MixScrims
     /// <summary>
     /// Returns a player by their Controller.PlayerName.
     /// </summary>
-    private IPlayer? GetPlayerByName(string playerName)
+    internal IPlayer? GetPlayerByName(string playerName)
     {
         return GetPlayers().FirstOrDefault(p =>
             string.Equals(p.Controller?.PlayerName, playerName, StringComparison.OrdinalIgnoreCase));
     }
 
+    internal IPlayer? GetPlayerBySteamId(ulong steamId)
+    {
+        return GetPlayers().FirstOrDefault(p => p.SteamID == steamId);
+	}
+
     /// <summary>
     /// Pauses the match using cvar.
     /// </summary>
-    private void PauseMatch()
+    internal void PauseMatch()
     {
         logger.LogInformation("Pausing match");
         Core.Scheduler.NextTick(() =>
@@ -196,7 +213,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Unpauses the match using cvar.
     /// </summary>
-    private void UnpauseMatch()
+    internal void UnpauseMatch()
     {
         logger.LogInformation("Unpausing match");
         Core.Scheduler.NextTick(() =>
@@ -208,7 +225,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Retrieves the details of a map by its name or display name.
     /// </summary>
-    private MapDetails? GetMapByName(string mapName)
+    internal MapDetails? GetMapByName(string mapName)
     {
         return cfg.Maps.FirstOrDefault(m =>
             string.Equals(m.MapName, mapName, StringComparison.OrdinalIgnoreCase)
@@ -216,9 +233,18 @@ public sealed partial class MixScrims
     }
 
     /// <summary>
-    /// Respawns the specified player if they are eligible for respawn.
+    /// Retrieves the map details associated with the specified workshop identifier.
     /// </summary>
-    private void RespawnPlayer(IPlayer player)
+	internal MapDetails? GetMapByWorkshopId(string workshopId)
+	{
+		return cfg.Maps.FirstOrDefault(m =>
+			string.Equals(m.WorkshopId, workshopId, StringComparison.OrdinalIgnoreCase));
+	}
+
+	/// <summary>
+	/// Respawns the specified player if they are eligible for respawn.
+	/// </summary>
+	internal void RespawnPlayer(IPlayer player)
     {
         if (!canPlayerBeRespawned)
         {
@@ -251,7 +277,7 @@ public sealed partial class MixScrims
     /// <summary>
     /// Closes the currently open menu for the specified player, if one exists.
     /// </summary>
-    private void CloseMenuForPlayer(IPlayer player)
+    internal void CloseMenuForPlayer(IPlayer player)
     {
         if (!IsBot(player) && IsPlayerValid(player))
         {
@@ -266,19 +292,10 @@ public sealed partial class MixScrims
     /// <summary>
     /// Formats a server ban command by replacing placeholders with the specified Steam ID, duration, and reason.
     /// </summary>
-    private string FormatBanCommand(IPlayer? player)
+    internal string FormatBanCommand(ulong steamId)
     {
-        if (player == null)
-        {
-            if (cfg.DetailedLogging)
-                logger.LogWarning("FormatBanCommand: player is null");
-            
-            return string.Empty;
-        }
-
-        var steamId = player.SteamID.ToString();
         var command = cfg.PlayerLeavePunishment.ServerCommand;
-        command = command.Replace("{steamId}", steamId);
+        command = command.Replace("{steamId}", steamId.ToString());
         command = command.Replace("{duration}", cfg.PlayerLeavePunishment.BanDurationMinutes.ToString());
         command = command.Replace("{reason}", cfg.PlayerLeavePunishment.BanReason);
         return command;
