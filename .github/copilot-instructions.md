@@ -12,7 +12,6 @@ MixScrims is a **SwiftlyS2 plugin** that implements FACEIT-style PUG matches wit
 **Documentation:**
 - [Project Wiki](https://github.com/shmitzas/MixScrims-SwiftlyS2/wiki) - Comprehensive guides for installation, configuration, features, and contributing
 - [SwiftlyS2 API Reference](https://swiftlys2.net/llms-full.txt) - Framework API documentation
-- [PR #27 - v1.3.0 QOL Improvements](https://github.com/shmitzas/MixScrims-SwiftlyS2/pull/27) - Latest feature updates including GlobalServerPrefix, ready status displays, expanded API, player punishment system
 
 **Jump to:** [Quick Reference](#quick-reference) • [Match Flow](#match-flow-overview) • [Architecture](#critical-architecture-patterns) • [Development](#development-workflows) • [Config](#config-features-by-category) • [API](#shared-api-pattern) • [Commands](#available-commands) • [Testing](#testing--debugging) • [Pitfalls](#common-pitfalls)
 
