@@ -130,7 +130,7 @@ partial class MixScrims
 		{
 			if (timeoutCountCt < 1)
 			{
-                PrintMessageToPlayer(player, Core.Localizer["error.no_timeouts_left", timeoutCountT, cfg.Timeouts]);
+                PrintMessageToPlayer(player, Core.Localizer["error.no_timeouts_left", 0, cfg.Timeouts]);
                 return;
             }
 			StartTimeoutVote(player, Team.CT);
@@ -140,7 +140,7 @@ partial class MixScrims
         {
             if (timeoutCountT < 1)
             {
-                PrintMessageToPlayer(player, Core.Localizer["error.no_timeouts_left", timeoutCountT, cfg.Timeouts]);
+                PrintMessageToPlayer(player, Core.Localizer["error.no_timeouts_left", 0, cfg.Timeouts]);
                 return;
             }
             StartTimeoutVote(player, Team.T);
@@ -272,6 +272,7 @@ partial class MixScrims
 	/// <summary>
 	/// Additional way of chosing wheter to stay or switch teams after knife round
 	/// </summary>
+	[Command("switch")]
 	public void OnSwitch(ICommandContext context)
 	{
 		var player = context.Sender;

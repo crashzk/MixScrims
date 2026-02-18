@@ -20,6 +20,8 @@ public partial class MixScrims
     {
         StopPreMatchAnnouncementTimers();
 
+        RemoveReadyClanTagsFromAllPlayers();
+
         if (!cfg.DisableCaptains)
         {
             if (cfg.DetailedLogging)
@@ -101,12 +103,12 @@ public partial class MixScrims
         int teamStarting = random.Next(2, 4);
         if (teamStarting == 3)
         {
-            PromptTCaptainoPickPlayer(captainCt, Team.CT);
+            PromptCaptainToPickPlayer(captainCt, Team.CT);
             return;
         }
         if (teamStarting == 2)
         {
-            PromptTCaptainoPickPlayer(captainT, Team.T);
+            PromptCaptainToPickPlayer(captainT, Team.T);
             return;
         }
     }
@@ -193,11 +195,11 @@ public partial class MixScrims
     /// <summary>
     /// Prompts the specified team captain to select a player for their team.
     /// </summary>
-    internal void PromptTCaptainoPickPlayer(IPlayer? captain, Team team)
+    internal void PromptCaptainToPickPlayer(IPlayer? captain, Team team)
     {
         if (captain == null)
         {
-            logger.LogError("PromptTCaptainoPickPlayer: Captain is null.");
+            logger.LogError("PromptCaptainToPickPlayer: Captain is null.");
             return;
         }
 
@@ -206,8 +208,8 @@ public partial class MixScrims
 
         if (players.Count == 0)
         {
-            logger.LogWarning("PromptTCaptainoPickPlayer: No players available to pick.");
-            StartKnifeRound();
+            logger.LogWarning("PromptCaptainToPickPlayer: No players available to pick.");
+            Core.Scheduler.NextTick(() => StartKnifeRound());
             return;
         }
 
@@ -226,13 +228,14 @@ public partial class MixScrims
         {
             var randomIndex = new Random().Next(players.Count);
             var selectedPlayer = players[randomIndex];
+            var selectedPlayerName = selectedPlayer.Controller!.PlayerName;
             if (team == Team.CT)
             {
-                Core.Scheduler.NextTick(() => AssignPickedPlayerToTeamCt(captain, selectedPlayer.Controller!.PlayerName));
+                AssignPickedPlayerToTeamCt(captain, selectedPlayerName);
             }
             else
             {
-                Core.Scheduler.NextTick(() => AssignPickedPlayerToTeamT(captain, selectedPlayer.Controller!.PlayerName));
+                AssignPickedPlayerToTeamT(captain, selectedPlayerName);
             }
             return;
         }
@@ -257,16 +260,14 @@ public partial class MixScrims
             {
                 button.Click += async (sender, args) =>
                 {
-                    Core.Scheduler.NextTick(()=>AssignPickedPlayerToTeamCt(captain, displayName));
-                    await ValueTask.CompletedTask;
+                    AssignPickedPlayerToTeamCt(captain, displayName);
                 };
             }
             else
             {
                 button.Click += async (sender, args) =>
                 {
-                    Core.Scheduler.NextTick(() => AssignPickedPlayerToTeamT(captain, displayName));
-                    await ValueTask.CompletedTask;
+                    AssignPickedPlayerToTeamT(captain, displayName);
                 };
             }
             builder.AddOption(button);
@@ -451,7 +452,7 @@ public partial class MixScrims
         {
             logger.LogError("AssignPickedPlayerToTeamCt: picked player is invalid");
             PrintMessageToPlayer(captain, Core.Localizer["error.invalid_player_picked", pickedPlayerName]);
-            PromptTCaptainoPickPlayer(captain, Team.CT);
+            PromptCaptainToPickPlayer(captain, Team.CT);
             return;
         }
 
@@ -459,9 +460,9 @@ public partial class MixScrims
 
         if (IsBot(player))
         {
-            player.SwitchTeam(Team.CT);
+            player.SwitchTeamAsync(Team.CT);
         }
-        player.ChangeTeam(Team.CT);
+        player.ChangeTeamAsync(Team.CT);
 
         if (cfg.DetailedLogging)
             logger.LogInformation($"AssignPickedPlayerToTeamCt: {captain.Controller!.PlayerName} picked {player.Controller!.PlayerName} for CT team.");
@@ -469,11 +470,11 @@ public partial class MixScrims
 
         if (pickedCtPlayers.Count + pickedTPlayers.Count >= cfg.MinimumReadyPlayers)
         {
-            StartKnifeRound();
+            Core.Scheduler.NextTick(() => StartKnifeRound());
             return;
         }
 
-        PromptTCaptainoPickPlayer(captainT, Team.T);
+        PromptCaptainToPickPlayer(captainT, Team.T);
         CloseMenuForPlayer(captain);
     }
 
@@ -488,7 +489,7 @@ public partial class MixScrims
         {
             logger.LogError("AssignPickedPlayerToTeamT: picked player is invalid");
             PrintMessageToPlayer(captain, Core.Localizer["error.invalid_player_picked", pickedPlayerName]);
-            PromptTCaptainoPickPlayer(captain, Team.T);
+            PromptCaptainToPickPlayer(captain, Team.T);
             return;
         }
 
@@ -496,9 +497,9 @@ public partial class MixScrims
 
         if (IsBot(player))
         {
-            player.SwitchTeam(Team.T);
+            player.SwitchTeamAsync(Team.T);
         }
-        player.ChangeTeam(Team.T);
+        player.ChangeTeamAsync(Team.T);
 
         var currentMenu = Core.MenusAPI.GetCurrentMenu(captain);
         if (currentMenu != null)
@@ -512,11 +513,11 @@ public partial class MixScrims
 
         if (pickedCtPlayers.Count + pickedTPlayers.Count >= cfg.MinimumReadyPlayers)
         {
-            StartKnifeRound();
+            Core.Scheduler.NextTick(() => StartKnifeRound());
             return;
         }
 
-        PromptTCaptainoPickPlayer(captainCt, Team.CT);
+        PromptCaptainToPickPlayer(captainCt, Team.CT);
         CloseMenuForPlayer(captain);
     }
 
@@ -545,7 +546,7 @@ public partial class MixScrims
 
             if (cfg.DetailedLogging)
                 logger.LogInformation($"Moving {player.Controller!.PlayerName} to SPEC");
-            player.ChangeTeam(Team.Spectator);
+            player.ChangeTeamAsync(Team.Spectator);
         }
 
         var pickedCtPlayerIds = new HashSet<int>(pickedCtPlayers.Select(p => p.PlayerID));
@@ -558,9 +559,9 @@ public partial class MixScrims
                 logger.LogInformation($"Moving {player.Controller!.PlayerName} to CT");
             if (IsBot(player))
             {
-                player.SwitchTeam(Team.CT);
+                player.SwitchTeamAsync(Team.CT);
             }
-            player.ChangeTeam(Team.CT);
+            player.ChangeTeamAsync(Team.CT);
         }
 
         var pickedTPlayerIds = new HashSet<int>(pickedTPlayers.Select(p => p.PlayerID));
@@ -573,9 +574,9 @@ public partial class MixScrims
                 logger.LogInformation($"Moving {player.Controller!.PlayerName} to T");
             if (IsBot(player))
             {
-                player.SwitchTeam(Team.T);
+                player.SwitchTeamAsync(Team.T);
             }
-            player.ChangeTeam(Team.T);
+            player.ChangeTeamAsync(Team.T);
         }
 
         isMovingPlayersToTeams = false;

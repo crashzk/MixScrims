@@ -45,7 +45,6 @@ public partial class MixScrims
             pickedTPlayers.Clear();
         }
 
-        // Ensure manually-set captains are in playing lists
         if (captainCt != null && IsPlayerValid(captainCt))
         {
             if (!playingCtPlayers.Any(p => p.PlayerID == captainCt.PlayerID))
@@ -82,16 +81,35 @@ public partial class MixScrims
 
         readyPlayers.Clear();
 
-        RemoveReadyClanTagsFromAllPlayers();
-
         StopPreMatchAnnouncementTimers();
 
+        // Close any open team picking menus for captains
+        if (captainCt != null && IsPlayerValid(captainCt))
+        {
+            var ctMenu = Core.MenusAPI.GetCurrentMenu(captainCt);
+            if (ctMenu != null)
+            {
+                Core.MenusAPI.CloseMenuForPlayer(captainCt, ctMenu);
+                if (cfg.DetailedLogging)
+                    logger.LogInformation($"StartKnifeRound: Closed open menu for CT captain {captainCt.Controller.PlayerName}");
+            }
+        }
+
+        if (captainT != null && IsPlayerValid(captainT))
+        {
+            var tMenu = Core.MenusAPI.GetCurrentMenu(captainT);
+            if (tMenu != null)
+            {
+                Core.MenusAPI.CloseMenuForPlayer(captainT, tMenu);
+                if (cfg.DetailedLogging)
+                    logger.LogInformation($"StartKnifeRound: Closed open menu for T captain {captainT.Controller.PlayerName}");
+            }
+        }
+
         UnpauseMatch();
-        //MovePlayersToDesignatedTeamsPreMatch();
+
         Core.Engine.ExecuteCommand("exec mixscrims/knife_round.cfg");
         
-        // Note: Don't call KickNotPickedPlayers here - pickedCtPlayers/pickedTPlayers 
-        // have already been cleared (lines 33, 45). Use KickNotPlayingPlayers instead.
         if (cfg.KickPlayersNotInMatch)
         {
             mixScrimsService.KickNotPlayingPlayers(Core.Localizer["info.kick_reason.not_picked"]);
@@ -363,12 +381,12 @@ public partial class MixScrims
                             logger.LogInformation($"SwitchStartingSides: Moving {player.Controller.PlayerName} to T");
                         if (IsBot(player))
                         {
-                            Core.Scheduler.NextTick(() => player.SwitchTeam(Team.T));
+                            player.SwitchTeamAsync(Team.T);
                         }
 
                         try
                         {
-                            player.ChangeTeam(Team.T);
+                            player.ChangeTeamAsync(Team.T);
                         }
                         catch (Exception ex)
                         {
@@ -391,12 +409,12 @@ public partial class MixScrims
                             logger.LogInformation($"SwitchStartingSides: Moving {player.Controller.PlayerName} to CT");
                         if (IsBot(player))
                         {
-                            Core.Scheduler.NextTick(() => player.SwitchTeam(Team.CT));
+                            player.SwitchTeamAsync(Team.CT);
                         }
 
                         try
                         {
-                            player.ChangeTeam(Team.CT);
+                            player.ChangeTeamAsync(Team.CT);
                         }
                         catch (Exception ex)
                         {
@@ -473,7 +491,7 @@ public partial class MixScrims
 
             if (cfg.DetailedLogging)
                 logger.LogInformation($"Moving {player.Controller.PlayerName} to SPEC");
-            player.ChangeTeam(Team.Spectator);
+            player.ChangeTeamAsync(Team.Spectator);
         }
 
         var playingCtPlayerIds = new HashSet<int>(playingCtPlayers.Select(p => p.PlayerID));
@@ -486,11 +504,11 @@ public partial class MixScrims
                 logger.LogInformation($"Moving {player.Controller.PlayerName} to CT");
             if (IsBot(player))
             {
-                Core.Scheduler.NextTick(() => player.SwitchTeam(Team.CT));
+                player.SwitchTeamAsync(Team.CT);
             }
             else
             {
-                player.ChangeTeam(Team.CT);
+                player.ChangeTeamAsync(Team.CT);
             }
         }
         
@@ -505,11 +523,11 @@ public partial class MixScrims
                 logger.LogInformation($"Moving {player.Controller.PlayerName} to T");
             if (IsBot(player))
             {
-                Core.Scheduler.NextTick(() => player.SwitchTeam(Team.T));
+                player.SwitchTeamAsync(Team.T);
             }
             else
             {
-                player.ChangeTeam(Team.T);
+                player.ChangeTeamAsync(Team.T);
             }
         }
 
