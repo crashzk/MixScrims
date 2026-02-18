@@ -42,10 +42,9 @@
 
 ---
 
-## 🤝 Get Help
+## 🤝 Report issues or request features
 
 - **Issues**: [GitHub Issues](https://github.com/Shmitzas/MixScrims-SwiftlyS2/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Shmitzas/MixScrims-SwiftlyS2/discussions)
 
 ---
 
