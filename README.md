@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build Status">
-  <img src="https://img.shields.io/github/downloads/Shmitzas/MixScrims-SwiftlyS2/total" alt="Downloads">
+  <img src="https://img.shields.io/github/downloads/Shmitzas/MixScrims-SwiftlyS2/total?style=flat&logo=github&cacheSeconds=3600" alt="Downloads">
   <img src="https://img.shields.io/github/stars/Shmitzas/MixScrims-SwiftlyS2?style=flat&logo=github&cacheSeconds=3600" alt="Stars">
   <img src="https://img.shields.io/github/license/Shmitzas/MixScrims-SwiftlyS2" alt="License">
 </p>
