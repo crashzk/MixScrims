@@ -6,13 +6,12 @@ using MixScrims.Contract;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.Plugins;
-using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace MixScrims;
 
 [PluginMetadata(
     Id = "MixScrims",
-    Version = "1.5.3",
+    Version = "1.5.4",
     Name = "MixScrims",
     Author = "Shmitzas",
     Description = "A plugin for PUGS style matches, with in-game match management."
