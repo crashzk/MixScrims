@@ -12,7 +12,7 @@ namespace MixScrims;
 
 [PluginMetadata(
     Id = "MixScrims",
-    Version = "1.5.2",
+    Version = "1.5.3",
     Name = "MixScrims",
     Author = "Shmitzas",
     Description = "A plugin for PUGS style matches, with in-game match management."
@@ -41,7 +41,6 @@ public partial class MixScrims : BasePlugin
     public override void Load(bool hotReload)
     {
         Core = base.Core;
-        Core.Registrator.Register(this);
 
         LoadMainConfig();
         LoadDiscordConfig();
