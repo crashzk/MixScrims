@@ -35,12 +35,18 @@ public partial class MixScrims
 
         if (pluginState == PluginState.Staging)
         {
-            var token = Core.Scheduler.DelayBySeconds(3, () => Core.Engine.ExecuteCommand("exec mixscrims/staging_overrides.cfg"));
+            var token = Core.Scheduler.DelayBySeconds(3, () => 
+            {
+                Core.Scheduler.NextTick(() => Core.Engine.ExecuteCommand("exec mixscrims/staging_overrides.cfg"));
+            });
             Core.Scheduler.StopOnMapChange(token);
         }
         else
         {
-            var token = Core.Scheduler.DelayBySeconds(3, () => Core.Engine.ExecuteCommand("exec mixscrims/production_overrides.cfg"));
+            var token = Core.Scheduler.DelayBySeconds(3, () => 
+            {
+                Core.Scheduler.NextTick(() => Core.Engine.ExecuteCommand("exec mixscrims/production_overrides.cfg"));
+            });
             Core.Scheduler.StopOnMapChange(token);
         }
 

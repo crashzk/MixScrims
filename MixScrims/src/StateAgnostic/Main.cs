@@ -478,7 +478,10 @@ public sealed partial class MixScrims
             logger.LogError("ExecutePunishmentCommand: formatted ban command is null or whitespace for SteamID {SteamId}", steamId);
             return;
         }
-        Core.Engine.ExecuteCommand(banCommand);
+        Core.Scheduler.NextTick(() =>
+        {
+            Core.Engine.ExecuteCommand(banCommand);
+        });
         playersWaitingForPunishment.Remove(steamId);
     }
 

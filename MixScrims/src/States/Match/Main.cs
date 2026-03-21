@@ -25,7 +25,10 @@ public partial class MixScrims
             RemoveReadyClanTagsFromAllPlayers();
 
         UnpauseMatch();
-        Core.Engine.ExecuteCommand("exec mixscrims/match_start.cfg");
+        Core.Scheduler.NextTick(() =>
+        {
+            Core.Engine.ExecuteCommand("exec mixscrims/match_start.cfg");
+        });
 
         var mapName = Core.Engine.GlobalVars.MapName;
         if (string.IsNullOrEmpty(mapName))
