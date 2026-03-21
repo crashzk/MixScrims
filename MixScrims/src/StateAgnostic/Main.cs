@@ -25,6 +25,11 @@ public sealed partial class MixScrims
 
     internal void StartAnnouncementTimers()
     {
+        // Cancel any existing timers first to prevent duplicates
+        playerStatusTimer?.Cancel();
+        playerStatusTimerCenterHtml?.Cancel();
+        commandRemindersTimer?.Cancel();
+
         // Players ready status
         playerStatusTimer = Core.Scheduler.RepeatBySeconds(
             periodSeconds: cfg.ChatAnnouncementTimers.PlayersReadyStatus,
