@@ -27,6 +27,7 @@ public class MainConfig
     public bool ShowReadyStatusInScoreboard { get; set; } = true;
     public bool ShowReadyStatusInCenterHtml { get; set; } = true;
     public bool HideReadyStatusInCenterWhenReady { get; set; } = false;
+    public bool MovePlayersToSpecDuringTeamPicking { get; set; } = true;
 
     // Announcement timers
     public AnnouncementTimers ChatAnnouncementTimers { get; set; } = new();
@@ -36,6 +37,9 @@ public class MainConfig
         "ready",
         "invite"
     ];
+
+    // Vote kick settings
+    public VoteKickConfig VoteKick { get; set; } = new();
 
     // Player leave punishment settings
     public bool PunishPlayerLeaves { get; set; } = false;
@@ -64,6 +68,7 @@ public class MainConfig
         { "stay", new() { Permission = "", Aliases = ["st"] } },
         { "switch", new() { Permission = "", Aliases = ["swap"] } },
         { "volunteer_captain", new() { Permission = "", Aliases = ["volcap", "selfcapt"] }   },
+        { "votekick", new() { Permission = "", Aliases = ["vk"] } },
     };
 
     // Map settings
@@ -108,7 +113,7 @@ public class LeavePunishment
     public string ServerCommand { get; set; } = "sw_ban {steamId} {duration} {reason}";
     public int BanDurationMinutes { get; set; } = 15;
     public string BanReason { get; set; } = "Leaving during a MixScrims match";
-    public int Sensitivity = 2;
+    public int Sensitivity { get; set; } = 2;
     public int WaitBeforePunishmentSeconds { get; set; } = 300;
 }
 
@@ -116,5 +121,11 @@ public class CommandInfo
 {
     public string Permission { get; set; } = string.Empty;
     public List<string> Aliases { get; set; } = [];
+}
+
+public class VoteKickConfig
+{
+    public bool Enabled { get; set; } = true;
+    public int VoteKickTime { get; set; } = 30;
 }
 

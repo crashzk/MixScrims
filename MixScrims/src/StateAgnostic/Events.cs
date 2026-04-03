@@ -71,7 +71,9 @@ partial class MixScrims
                     var delayedPlayer = Core.PlayerManager.GetPlayer(playerSlot);
                     if (delayedPlayer != null && delayedPlayer.IsValid)
                     {
-                        HandlePlayerChangeTeam(delayedPlayer, 0);
+                        var currentState = mixScrimsService.GetCurrentMatchState();
+                        if (currentState == MatchState.Warmup || currentState == MatchState.MapVoting || currentState == MatchState.MapChosen)
+                            HandlePlayerChangeTeam(delayedPlayer, 0);
                     }
                 });
             }
@@ -231,6 +233,14 @@ partial class MixScrims
             return;
         }
 
+        if (recentlyDisconnectedPlayers.Contains(player.Slot))
+            return;
+        recentlyDisconnectedPlayers.Add(player.Slot);
+        var disconnectingPlayerSlot = player.Slot;
+        Core.Scheduler.DelayBySeconds(1, () => recentlyDisconnectedPlayers.Remove(disconnectingPlayerSlot));
+
+        freshlyJoinedPlayers.Remove(player.Slot);
+
         if (pickedCtPlayers.Any(p => p.PlayerID == player.PlayerID))
         {
             pickedCtPlayers.RemoveAll(p => p.PlayerID == player.PlayerID);
@@ -258,6 +268,8 @@ partial class MixScrims
             if (cfg.DetailedLogging)
                 logger.LogInformation($"HandleDisconnectedPlayer: Removed {player.Controller.PlayerName} from playingTPlayers.");
         }
+
+        playerColors.Remove(player.PlayerID);
 
         var matchState = mixScrimsService.GetCurrentMatchState();
 
@@ -314,8 +326,7 @@ partial class MixScrims
             }
         }
 
-        if (matchState == MatchState.PickingStartingSide
-            || matchState == MatchState.Timeout)
+        if (matchState == MatchState.PickingStartingSide)
         {
             if (!cfg.DisableCaptains && player.PlayerID == winnerCaptain?.PlayerID)
             {
@@ -511,11 +522,13 @@ partial class MixScrims
         {
             if (teamTojoin == 3)
             {
-                if (playingCtPlayers.Count < cfg.MinimumReadyPlayers / 2)
+                if (playingCtPlayers.Count < cfg.MinimumReadyPlayers / 2
+                    && !playingCtPlayers.Any(p => p.PlayerID == player.PlayerID))
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation($"HandlePlayerJoinTeam - Match: Player {player.Controller.PlayerName} joined CT team.");
                     playingCtPlayers.Add(player);
+                    Core.Scheduler.NextTick(() => FixTeammateColors());
                     return HookResult.Continue;
                 }
 
@@ -523,6 +536,7 @@ partial class MixScrims
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation($"HandlePlayerJoinTeam - Match: Player {player.Controller.PlayerName} re-joined CT team.");
+                    Core.Scheduler.NextTick(() => FixTeammateColors());
                     return HookResult.Continue;
                 }
                 else
@@ -536,11 +550,13 @@ partial class MixScrims
 
             if (teamTojoin == 2)
             {
-                if (playingTPlayers.Count < cfg.MinimumReadyPlayers / 2)
+                if (playingTPlayers.Count < cfg.MinimumReadyPlayers / 2
+                    && !playingTPlayers.Any(p => p.PlayerID == player.PlayerID))
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation($"HandlePlayerJoinTeam - Match: Player {player.Controller.PlayerName} joined T team.");
                     playingTPlayers.Add(player);
+                    Core.Scheduler.NextTick(() => FixTeammateColors());
                     return HookResult.Continue;
                 }
 
@@ -548,6 +564,7 @@ partial class MixScrims
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation($"HandlePlayerJoinTeam - Match: Player {player.Controller.PlayerName} re-joined T team.");
+                    Core.Scheduler.NextTick(() => FixTeammateColors());
                     return HookResult.Continue;
                 }
                 else
@@ -567,8 +584,6 @@ partial class MixScrims
                 playingTPlayers.RemoveAll(p => p.PlayerID == player.PlayerID);
                 return HookResult.Continue;
             }
-
-            FixTeammateColors();
         }
 
         return HookResult.Stop;
