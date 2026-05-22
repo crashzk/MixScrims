@@ -216,7 +216,11 @@ public partial class MixScrims
             return;
         }
 
-        if (captainCt != null)
+        // Captains may have been set from references that became disposed during the map change;
+        // drop those before touching .Controller below.
+        EnsureCaptainsAlive();
+
+        if (captainCt != null && IsPlayerValid(captainCt))
         {
             if (cfg.DetailedLogging)
                 logger.LogInformation("Captain CT: {PlayerName}", captainCt.Controller.PlayerName);
@@ -229,7 +233,7 @@ public partial class MixScrims
             PrintMessageToAllPlayers(Core.Localizer["announcement.captain.not_chosen.ct"]);
         }
 
-        if (captainT != null)
+        if (captainT != null && IsPlayerValid(captainT))
         {
             if (cfg.DetailedLogging)
                 logger.LogInformation("Captain T: {PlayerName}", captainT.Controller.PlayerName);

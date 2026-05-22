@@ -23,6 +23,10 @@ public partial class MixScrims
 
         RemoveReadyClanTagsFromAllPlayers();
 
+        // Clear captains whose IPlayer reference is now disposed (e.g. set before the
+        // map change and the player has reconnected as a new IPlayer instance).
+        EnsureCaptainsAlive();
+
         if (!cfg.DisableCaptains)
         {
             if (cfg.DetailedLogging)

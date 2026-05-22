@@ -90,10 +90,74 @@ public sealed partial class MixScrims
 
     /// <summary>
     /// Checks if the player is valid (not null, has a controller, and is on a valid team).
+    /// Safe against stale/disposed IPlayer references whose property access throws.
     /// </summary>
     internal bool IsPlayerValid(IPlayer? player)
     {
-        return player != null && player.IsValid;
+        if (player == null) return false;
+        try { return player.IsValid; }
+        catch (ObjectDisposedException) { return false; }
+        catch (Exception) { return false; }
+    }
+
+    /// <summary>
+    /// Validates the current captain references and clears any that are null, disposed, or otherwise
+    /// invalid. If a captain reference is cleared and the corresponding team has playing/picked players
+    /// available, attempts to re-pick a replacement captain from those rosters.
+    /// </summary>
+    internal void EnsureCaptainsAlive()
+    {
+        if (captainCt != null && !IsPlayerValid(captainCt))
+        {
+            if (cfg.DetailedLogging)
+                logger.LogWarning("EnsureCaptainsAlive: CT captain reference is invalid/disposed, clearing.");
+            captainCt = null;
+        }
+
+        if (captainT != null && !IsPlayerValid(captainT))
+        {
+            if (cfg.DetailedLogging)
+                logger.LogWarning("EnsureCaptainsAlive: T captain reference is invalid/disposed, clearing.");
+            captainT = null;
+        }
+
+        if (captainCt == null)
+        {
+            IPlayer? replacement = null;
+            if (playingCtPlayers.Count > 0)
+                replacement = playingCtPlayers.FirstOrDefault(p => IsPlayerValid(p) && !IsBot(p))
+                              ?? playingCtPlayers.FirstOrDefault(p => IsPlayerValid(p));
+            if (replacement == null && pickedCtPlayers.Count > 0)
+                replacement = pickedCtPlayers.FirstOrDefault(p => IsPlayerValid(p) && !IsBot(p))
+                              ?? pickedCtPlayers.FirstOrDefault(p => IsPlayerValid(p));
+            if (replacement == null)
+                replacement = PickRandomCaptain(Team.CT);
+            if (replacement != null)
+            {
+                captainCt = replacement;
+                if (cfg.DetailedLogging)
+                    logger.LogInformation("EnsureCaptainsAlive: Re-picked CT captain: {Name}", replacement.Name);
+            }
+        }
+
+        if (captainT == null)
+        {
+            IPlayer? replacement = null;
+            if (playingTPlayers.Count > 0)
+                replacement = playingTPlayers.FirstOrDefault(p => IsPlayerValid(p) && !IsBot(p))
+                              ?? playingTPlayers.FirstOrDefault(p => IsPlayerValid(p));
+            if (replacement == null && pickedTPlayers.Count > 0)
+                replacement = pickedTPlayers.FirstOrDefault(p => IsPlayerValid(p) && !IsBot(p))
+                              ?? pickedTPlayers.FirstOrDefault(p => IsPlayerValid(p));
+            if (replacement == null)
+                replacement = PickRandomCaptain(Team.T);
+            if (replacement != null)
+            {
+                captainT = replacement;
+                if (cfg.DetailedLogging)
+                    logger.LogInformation("EnsureCaptainsAlive: Re-picked T captain: {Name}", replacement.Name);
+            }
+        }
     }
 
     /// <summary>
