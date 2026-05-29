@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using MixScrims.Contract;
 using SwiftlyS2.Shared.Commands;
 
 namespace MixScrims;
@@ -45,6 +46,23 @@ public partial class MixScrims
         {
             logger.LogInformation("Match started by force by Console");
             PrintMessageToAllPlayers(Core.Localizer["command.force.match_start", "Console"]);
+        }
+
+        // Only force-start (re)launch the knife round from pre-match phases. If we are already
+        // past picking teams (KnifeRound / PickingStartingSide / Match / Timeout), restarting
+        // StartKnifeRound() would loop the knife round forever (the bug observed when a captain
+        // ref was disposed and the side-pick menu never opened, so admin used !start).
+        var currentState = mixScrimsService.GetCurrentMatchState();
+        if (currentState != MatchState.Warmup
+            && currentState != MatchState.MapChosen
+            && currentState != MatchState.MapLoading)
+        {
+            logger.LogWarning("OnForceMatchStart: ignored, current state is {State} (only allowed from Warmup/MapChosen).", currentState);
+            if (admin != null)
+            {
+                PrintMessageToPlayer(admin, Core.Localizer["command.invalid_state", "warmup"]);
+            }
+            return;
         }
 
         StartKnifeRound();

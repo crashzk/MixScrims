@@ -22,6 +22,10 @@ public partial class MixScrims
         mixScrimsService.SetMatchState(MatchState.KnifeRound);
         PrintMessageToAllPlayers(Core.Localizer["announcement.state_changed.knife_round"]);
 
+        // Drop any stale (disposed) captain references that survived a reconnect/map change
+        // before we use them below to seed playingCtPlayers/playingTPlayers.
+        EnsureCaptainsAlive();
+
         if (pickedCtPlayers.Count == 0)
         {
             logger.LogWarning("StartKnifeRound: No players picked for CT team. Setting current CT players as playingCtPlayers");
@@ -131,6 +135,10 @@ public partial class MixScrims
     {
         mixScrimsService.SetMatchState(MatchState.PickingStartingSide);
 
+        // Captains may hold stale/disposed IPlayer references after reconnects or map changes.
+        // Re-validate (and re-pick if needed) before accessing controller properties below.
+        EnsureCaptainsAlive();
+
         if (cfg.DisableCaptains)
         {
             if (cfg.DetailedLogging)
@@ -166,9 +174,11 @@ public partial class MixScrims
 
         if (winnerTeam == Team.CT)
         {
-            if (captainCt == null)
+            if (captainCt == null || !IsPlayerValid(captainCt))
             {
-                logger.LogError("PromptWinnerTCaptainoChoseStartingSide: CT Captain is null.");
+                logger.LogError("PromptWinnerTCaptainoChoseStartingSide: CT Captain is null or invalid; defaulting to Stay.");
+                PrintMessageToAllPlayers(Core.Localizer["announcement.knife_round.winner.ct"]);
+                StayStartingSides(null);
                 return;
             }
 
@@ -193,9 +203,11 @@ public partial class MixScrims
 
         if (winnerTeam == Team.T)
         {
-            if (captainT == null)
+            if (captainT == null || !IsPlayerValid(captainT))
             {
-                logger.LogError("PromptWinnerTCaptainoChoseStartingSide: T Captain is null.");
+                logger.LogError("PromptWinnerTCaptainoChoseStartingSide: T Captain is null or invalid; defaulting to Stay.");
+                PrintMessageToAllPlayers(Core.Localizer["announcement.knife_round.winner.t"]);
+                StayStartingSides(null);
                 return;
             }
 
