@@ -130,7 +130,7 @@ public partial class MixScrims : BasePlugin
 
             foreach (var alias in commandInfo.Aliases)
             {
-                Core.Command.RegisterCommandAlias(commandName, alias, true);
+                Core.Command.RegisterCommandAlias(commandName, alias, false);
             }
         }
     }
