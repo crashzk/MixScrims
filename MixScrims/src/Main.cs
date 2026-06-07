@@ -11,7 +11,7 @@ namespace MixScrims;
 
 [PluginMetadata(
     Id = "MixScrims",
-    Version = "1.7.6",
+    Version = "1.7.8",
     Name = "MixScrims",
     Author = "Shmitzas",
     Description = "A plugin for PUGS style matches, with in-game match management."
@@ -130,7 +130,7 @@ public partial class MixScrims : BasePlugin
 
             foreach (var alias in commandInfo.Aliases)
             {
-                Core.Command.RegisterCommandAlias(commandName, alias, true);
+                Core.Command.RegisterCommandAlias(commandName, alias, false);
             }
         }
     }
