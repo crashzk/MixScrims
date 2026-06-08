@@ -174,6 +174,7 @@ public partial class MixScrims
 
         VotedMap pickedMap = GetMostVotedMap();
         PrintMessageToAllPlayers(Core.Localizer["announcement.map.chosen", pickedMap.Map.DisplayName, pickedMap.Votes]);
+        mapLoadedFromMatchFlow = true;
         LoadSelectedMap(pickedMap.Map);
     }
 

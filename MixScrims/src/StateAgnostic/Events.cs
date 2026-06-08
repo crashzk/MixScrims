@@ -36,10 +36,15 @@ partial class MixScrims
         if (resetMixOnFirstJoin)
         {
             var currentState = mixScrimsService.GetCurrentMatchState();
-            if (currentState == MatchState.MapLoading)
+            // MixScrims-driven changes can land here in either MapLoading (if this handler
+            // runs before HandleMapChosenNewMapLoad) or MapChosen (if it runs after, since
+            // the MapChosen handler promotes state on match-flow loads). Both must be
+            // treated as plugin-driven; only an external map change (any other state) should
+            // trigger a deferred reset.
+            if (currentState == MatchState.MapLoading || currentState == MatchState.MapChosen)
             {
                 if (cfg.DetailedLogging)
-                    logger.LogInformation("HandleStateAgnosticMapLoad: Clearing resetMixOnFirstJoin flag — MixScrims-driven map change in progress.");
+                    logger.LogInformation("HandleStateAgnosticMapLoad: Clearing resetMixOnFirstJoin flag — MixScrims-driven map change in progress (state={State}).", currentState);
                 resetMixOnFirstJoin = false;
             }
             else
