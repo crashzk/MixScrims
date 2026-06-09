@@ -442,6 +442,15 @@ public partial class MixScrims
             players = GetPlayersInTeam(team.Value);
         }
 
+        // Map-vote flow lands every player in Spectator after the new map loads, so
+        // GetPlayersInTeam(CT/T) is empty during the MapChosen ready burst. Fall back to
+        // all valid human players so a captain can still be drawn instead of returning
+        // null (which would abort StartTeamPickingPhase and reset back to Warmup).
+        if (players.Count == 0)
+        {
+            players = GetPlayers().Where(p => IsPlayerValid(p) && !IsBot(p)).ToList();
+        }
+
         if (captainCt != null)
             players.RemoveAll(p => p.PlayerID == captainCt.PlayerID);
         if (captainT != null)

@@ -71,6 +71,7 @@ public partial class MixScrims
         forcedToSpectator.Clear();
         resetMixOnFirstJoin = false;
         stateBeforeMapLoading = null;
+        mapLoadedFromMatchFlow = false;
         CancelAutoResetOnLeaveTimer(announce: false);
         StopAllAnnouncmentTimers();
     }

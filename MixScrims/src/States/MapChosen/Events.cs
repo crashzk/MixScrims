@@ -60,6 +60,17 @@ public partial class MixScrims
         if (targetState == MatchState.MapLoading)
             targetState = MatchState.MapChosen;
 
+        // If the map load was driven by the match flow (vote -> MapChosen -> LoadSelectedMap),
+        // force MapChosen regardless of what was captured. This guarantees the next ready burst
+        // advances to team picking instead of looping back into map voting.
+        if (mapLoadedFromMatchFlow)
+        {
+            if (cfg.DetailedLogging)
+                logger.LogInformation("HandleMapChosenNewMapLoad: mapLoadedFromMatchFlow set, forcing target state to MapChosen (was {State}).", targetState);
+            targetState = MatchState.MapChosen;
+            mapLoadedFromMatchFlow = false;
+        }
+
         mixScrimsService.SetMatchState(targetState);
         if (cfg.DetailedLogging)
             logger.LogInformation("HandleMapChosenNewMapLoad: Match state changed to {State}", targetState);

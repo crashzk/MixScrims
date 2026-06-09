@@ -31,6 +31,11 @@ public sealed partial class MixScrims
     // unconditionally promote the match to MapChosen on the subsequent OnMapLoad.
     internal MatchState? stateBeforeMapLoading = null;
 
+    // Set true when the upcoming map load is driven by the match flow (vote -> MapChosen).
+    // Overrides stateBeforeMapLoading so the post-load state is always MapChosen, preventing
+    // the warmup ready loop from looping back into MapVoting on the new map.
+    internal bool mapLoadedFromMatchFlow = false;
+
     // SteamID-based reservation tracking. Populated when a listed player disconnects during
     // an active match state so their slot remains theirs across the reconnect (new PlayerID/slot).
     // Released on rejoin, punishment execution, or plugin reset.
@@ -710,7 +715,7 @@ public sealed partial class MixScrims
             return;
 
         var matchState = mixScrimsService.GetCurrentMatchState();
-        if (matchState == MatchState.Warmup || matchState == MatchState.MapLoading)
+        if (matchState == MatchState.Warmup || matchState == MatchState.MapLoading || matchState == MatchState.MapChosen)
             return;
 
         var currentPlayerCount = GetPlayingPlayers().Count(p => !IsBot(p));
