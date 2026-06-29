@@ -170,11 +170,22 @@ public partial class MixScrims
             }
         }
 
-        mixScrimsService.SetMatchState(MatchState.MapChosen);
+        if (rtvTriggeredMapVote)
+        {
+            // RTV-driven map vote: behave like a manual !map. Stay in Warmup across the
+            // map load (LoadSelectedMap captures stateBeforeMapLoading = Warmup, and
+            // mapLoadedFromMatchFlow stays false so HandleMapChosenNewMapLoad restores Warmup).
+            mixScrimsService.SetMatchState(MatchState.Warmup);
+            rtvTriggeredMapVote = false;
+        }
+        else
+        {
+            mixScrimsService.SetMatchState(MatchState.MapChosen);
+            mapLoadedFromMatchFlow = true;
+        }
 
         VotedMap pickedMap = GetMostVotedMap();
         PrintMessageToAllPlayers(Core.Localizer["announcement.map.chosen", pickedMap.Map.DisplayName, pickedMap.Votes]);
-        mapLoadedFromMatchFlow = true;
         LoadSelectedMap(pickedMap.Map);
     }
 

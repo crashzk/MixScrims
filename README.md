@@ -5,6 +5,7 @@
 </div>
 
 <p align="center">
+  <a href="https://forum.swiftlys2.net/t/mixscrims-og-way-to-play-mix-pugs-scrims/87"><img src="https://img.shields.io/badge/SwiftlyS2-Forum-blue?style=flat&logo=discourse" alt="SwiftlyS2 Forum"></a>
   <img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build Status">
   <img src="https://img.shields.io/github/downloads/Shmitzas/MixScrims-SwiftlyS2/total?style=flat&logo=github&cacheSeconds=3600" alt="Downloads">
   <img src="https://img.shields.io/github/stars/Shmitzas/MixScrims-SwiftlyS2?style=flat&logo=github&cacheSeconds=3600" alt="Stars">

@@ -52,7 +52,7 @@ public partial class MixScrims
 
         if (captainCt != null && IsPlayerValid(captainCt))
         {
-            if (!playingCtPlayers.Any(p => p.PlayerID == captainCt.PlayerID))
+            if (!playingCtPlayers.Any(p => p.SteamID == captainCt.SteamID))
             {
                 if (cfg.DetailedLogging)
                     logger.LogInformation("StartKnifeRound: Adding manually-set CT Captain {PlayerName} to playingCtPlayers.", captainCt.Controller.PlayerName);
@@ -62,7 +62,7 @@ public partial class MixScrims
 
         if (captainT != null && IsPlayerValid(captainT))
         {
-            if (!playingTPlayers.Any(p => p.PlayerID == captainT.PlayerID))
+            if (!playingTPlayers.Any(p => p.SteamID == captainT.SteamID))
             {
                 if (cfg.DetailedLogging)
                     logger.LogInformation("StartKnifeRound: Adding manually-set T Captain {PlayerName} to playingTPlayers.", captainT.Controller.PlayerName);

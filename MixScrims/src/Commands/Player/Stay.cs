@@ -40,7 +40,7 @@ public partial class MixScrims
             return;
         }
 
-        if (player.PlayerID != winnerCaptain?.PlayerID)
+        if (player.SteamID != winnerCaptain?.SteamID)
         {
             PrintMessageToPlayer(player, Core.Localizer["error.not_captain"]);
             return;

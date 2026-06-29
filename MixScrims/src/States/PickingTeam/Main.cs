@@ -49,14 +49,14 @@ public partial class MixScrims
             if (cfg.DetailedLogging)
             {
                 logger.LogInformation("StartTeamPickingPhase: Before validation - pickedCt: {CtCount}, pickedT: {TCount}", pickedCtPlayers.Count, pickedTPlayers.Count);
-                logger.LogInformation("StartTeamPickingPhase: CT captain in picked list: {InList}", pickedCtPlayers.Any(p => p.PlayerID == captainCt.PlayerID));
-                logger.LogInformation("StartTeamPickingPhase: T captain in picked list: {InList}", pickedTPlayers.Any(p => p.PlayerID == captainT.PlayerID));
+                logger.LogInformation("StartTeamPickingPhase: CT captain in picked list: {InList}", pickedCtPlayers.Any(p => p.SteamID == captainCt.SteamID));
+                logger.LogInformation("StartTeamPickingPhase: T captain in picked list: {InList}", pickedTPlayers.Any(p => p.SteamID == captainT.SteamID));
             }
 
             // Ensure captains are in picked lists (handles captains set during Warmup state)
             if (captainCt != null && IsPlayerValid(captainCt))
             {
-                if (!pickedCtPlayers.Any(p => p.PlayerID == captainCt.PlayerID))
+                if (!pickedCtPlayers.Any(p => p.SteamID == captainCt.SteamID))
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation("StartTeamPickingPhase: Adding CT Captain {PlayerName} to pickedCtPlayers.", captainCt.Controller.PlayerName);
@@ -66,7 +66,7 @@ public partial class MixScrims
 
             if (captainT != null && IsPlayerValid(captainT))
             {
-                if (!pickedTPlayers.Any(p => p.PlayerID == captainT.PlayerID))
+                if (!pickedTPlayers.Any(p => p.SteamID == captainT.SteamID))
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation("StartTeamPickingPhase: Adding T Captain {PlayerName} to pickedTPlayers.", captainT.Controller.PlayerName);
@@ -142,13 +142,13 @@ public partial class MixScrims
         {
             if (captainCt != null && captainCt.IsValid)
             {
-                players.RemoveAll(p => p.PlayerID == captainCt.PlayerID);
+                players.RemoveAll(p => p.SteamID == captainCt.SteamID);
                 playingCtPlayers.Add(captainCt);
             }
 
             if (captainT != null && captainT.IsValid)
             {
-                players.RemoveAll(p => p.PlayerID == captainT.PlayerID);
+                players.RemoveAll(p => p.SteamID == captainT.SteamID);
                 playingTPlayers.Add(captainT);
             }
         }
@@ -159,7 +159,7 @@ public partial class MixScrims
                 && player.IsValid
                 && player.PlayerPawn != null)
             {
-                if ((Team)player.PlayerPawn.TeamNum == Team.T && !playingTPlayers.Any(p => p.PlayerID == player.PlayerID))
+                if ((Team)player.PlayerPawn.TeamNum == Team.T && !playingTPlayers.Any(p => p.SteamID == player.SteamID))
                 {
                     if (cfg.MoveOverflowPlayersToSpec)
                     {
@@ -176,7 +176,7 @@ public partial class MixScrims
                     playingTPlayers.Add(player);
                 }
 
-                if ((Team)player.PlayerPawn.TeamNum == Team.CT && !playingCtPlayers.Any(p => p.PlayerID == player.PlayerID))
+                if ((Team)player.PlayerPawn.TeamNum == Team.CT && !playingCtPlayers.Any(p => p.SteamID == player.SteamID))
                 {
                     if (cfg.MoveOverflowPlayersToSpec)
                     {
@@ -216,7 +216,7 @@ public partial class MixScrims
         }
 
         var players = GetPlayers();
-        players.RemoveAll(p => pickedCtPlayers.Any(pp => pp.PlayerID == p.PlayerID) || pickedTPlayers.Any(pp => pp.PlayerID == p.PlayerID) || p.PlayerID == captain.PlayerID);
+        players.RemoveAll(p => pickedCtPlayers.Any(pp => pp.SteamID == p.SteamID) || pickedTPlayers.Any(pp => pp.SteamID == p.SteamID) || p.SteamID == captain.SteamID);
 
         if (players.Count == 0)
         {
@@ -331,14 +331,14 @@ public partial class MixScrims
         {
             if (matchState == MatchState.PickingTeam || matchState == MatchState.MapChosen)
             {
-                if (pickedCtPlayers.Any(p => p.PlayerID == captainCt.PlayerID))
+                if (pickedCtPlayers.Any(p => p.SteamID == captainCt.SteamID))
                 {
                     pickedCtPlayers.Remove(captainCt);
                 }
             }
             if (matchState == MatchState.KnifeRound)
             {
-                if (playingCtPlayers.Any(p => p.PlayerID == captainCt.PlayerID))
+                if (playingCtPlayers.Any(p => p.SteamID == captainCt.SteamID))
                 {
                     playingCtPlayers.Remove(captainCt);
                 }
@@ -361,7 +361,7 @@ public partial class MixScrims
             }
             if (matchState == MatchState.KnifeRound)
             {
-                if (!playingCtPlayers.Any(p => p.PlayerID == captainCt.PlayerID))
+                if (!playingCtPlayers.Any(p => p.SteamID == captainCt.SteamID))
                     playingCtPlayers.Add(captainCt);
             }
 
@@ -385,14 +385,14 @@ public partial class MixScrims
         {
             if (matchState == MatchState.PickingTeam || matchState == MatchState.MapChosen)
             {
-                if (pickedTPlayers.Any(p => p.PlayerID == captainT.PlayerID))
+                if (pickedTPlayers.Any(p => p.SteamID == captainT.SteamID))
                 {
                     pickedTPlayers.Remove(captainT);
                 }
             }
             if (matchState == MatchState.KnifeRound)
             {
-                if (playingTPlayers.Any(p => p.PlayerID == captainT.PlayerID))
+                if (playingTPlayers.Any(p => p.SteamID == captainT.SteamID))
                 {
                     playingTPlayers.Remove(captainT);
                 }
@@ -415,7 +415,7 @@ public partial class MixScrims
             }
             if (matchState == MatchState.KnifeRound)
             {
-                if (!playingTPlayers.Any(p => p.PlayerID == captainT.PlayerID))
+                if (!playingTPlayers.Any(p => p.SteamID == captainT.SteamID))
                     playingTPlayers.Add(captainT);
             }
 
@@ -452,9 +452,9 @@ public partial class MixScrims
         }
 
         if (captainCt != null)
-            players.RemoveAll(p => p.PlayerID == captainCt.PlayerID);
+            players.RemoveAll(p => p.SteamID == captainCt.SteamID);
         if (captainT != null)
-            players.RemoveAll(p => p.PlayerID == captainT.PlayerID);
+            players.RemoveAll(p => p.SteamID == captainT.SteamID);
 
         if (players.Count == 0)
         {

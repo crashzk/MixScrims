@@ -60,7 +60,7 @@ public partial class MixScrims
         var players = GetPlayers();
         foreach (var player in players)
         {
-            if (readyPlayers.Any(rp => rp.PlayerID == player.PlayerID))
+            if (readyPlayers.Any(rp => rp.SteamID == player.SteamID))
             {
                 logger.LogInformation("ForceUnreadyAllPlayers: Removing players from ready list");
                 RemovePlayerFromReadyList(player, false);

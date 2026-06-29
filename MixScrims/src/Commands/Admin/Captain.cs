@@ -48,7 +48,7 @@ public partial class MixScrims
             }
 
             var players = GetPlayingPlayers();
-            players.RemoveAll(p => captainCt?.PlayerID == p.PlayerID || captainT?.PlayerID == p.PlayerID);
+            players.RemoveAll(p => captainCt?.SteamID == p.SteamID || captainT?.SteamID == p.SteamID);
 
             if (players.Count == 0)
             {
