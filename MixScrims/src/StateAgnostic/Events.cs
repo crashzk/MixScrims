@@ -368,16 +368,16 @@ partial class MixScrims
         HandlePlayerDisconnectRtv(player.SteamID);
         forcedToSpectator.Remove(player.SteamID);
 
-        if (pickedCtPlayers.Any(p => p.PlayerID == player.PlayerID))
+        if (pickedCtPlayers.Any(p => p.SteamID == player.SteamID))
         {
-            pickedCtPlayers.RemoveAll(p => p.PlayerID == player.PlayerID);
+            pickedCtPlayers.RemoveAll(p => p.SteamID == player.SteamID);
             if (cfg.DetailedLogging)
                 logger.LogInformation("HandleDisconnectedPlayer: Removed {PlayerName} from pickedCtPlayers.", playerName);
         }
 
-        if (pickedTPlayers.Any(p => p.PlayerID == player.PlayerID))
+        if (pickedTPlayers.Any(p => p.SteamID == player.SteamID))
         {
-            pickedTPlayers.RemoveAll(p => p.PlayerID == player.PlayerID);
+            pickedTPlayers.RemoveAll(p => p.SteamID == player.SteamID);
             if (cfg.DetailedLogging)
                 logger.LogInformation("HandleDisconnectedPlayer: Removed {PlayerName} from pickedTPlayers.", playerName);
         }
@@ -418,12 +418,12 @@ partial class MixScrims
         {
             if (!cfg.DisableCaptains)
             {
-                if (player.PlayerID == captainCt?.PlayerID)
+                if (player.SteamID == captainCt?.SteamID)
                 {
                     captainCt = null;
                     StartTeamPickingPhase();
                 }
-                if (player.PlayerID == captainT?.PlayerID)
+                if (player.SteamID == captainT?.SteamID)
                 {
                     captainT = null;
                     StartTeamPickingPhase();
@@ -439,13 +439,13 @@ partial class MixScrims
             {
                 if (cfg.DetailedLogging)
                     logger.LogInformation("HandleDisconnectedPlayer: MatchState is {MatchState}", matchState);
-                if (player.PlayerID == captainCt?.PlayerID)
+                if (player.SteamID == captainCt?.SteamID)
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation("HandleDisconnectedPlayer: Disconnected player is CT captain");
 
                     captainCt = null;
-                    var newCaptain = playingCtPlayers.Where(p => p.PlayerID != player.PlayerID).FirstOrDefault();
+                    var newCaptain = playingCtPlayers.Where(p => p.SteamID != player.SteamID).FirstOrDefault();
 
                     if (cfg.DetailedLogging)
                     {
@@ -457,13 +457,13 @@ partial class MixScrims
 
                     PickCtCaptain(newCaptain);
                 }
-                if (player.PlayerID == captainT?.PlayerID)
+                if (player.SteamID == captainT?.SteamID)
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation("HandleDisconnectedPlayer: Disconnected player is T captain");
 
                     captainT = null;
-                    var newCaptain = playingTPlayers.Where(p => p.PlayerID != player.PlayerID).FirstOrDefault();
+                    var newCaptain = playingTPlayers.Where(p => p.SteamID != player.SteamID).FirstOrDefault();
 
                     if (cfg.DetailedLogging)
                     {
@@ -479,7 +479,7 @@ partial class MixScrims
 
         if (matchState == MatchState.PickingStartingSide)
         {
-            if (!cfg.DisableCaptains && player.PlayerID == winnerCaptain?.PlayerID)
+            if (!cfg.DisableCaptains && player.SteamID == winnerCaptain?.SteamID)
             {
                 if (cfg.DetailedLogging)
                     logger.LogInformation("HandleDisconnectedPlayer: Disconnected player is winner captain");
@@ -487,7 +487,7 @@ partial class MixScrims
             }
         }
 
-        if (readyPlayers.Any(p => p.PlayerID == player.PlayerID))
+        if (readyPlayers.Any(p => p.SteamID == player.SteamID))
         {
             if (cfg.DetailedLogging)
                 logger.LogInformation("HandleDisconnectedPlayer: Removing {PlayerName} from readyPlayers.", playerName);
@@ -697,7 +697,7 @@ partial class MixScrims
 
         if (matchState == MatchState.KnifeRound)
         {
-            if (!cfg.DisableCaptains && (player.PlayerID == captainCt?.PlayerID || player.PlayerID == captainT?.PlayerID))
+            if (!cfg.DisableCaptains && (player.SteamID == captainCt?.SteamID || player.SteamID == captainT?.SteamID))
             {
                 PrintMessageToPlayer(player, Core.Localizer["error.captain.cannot_change_team"]);
                 return HookResult.Stop;
@@ -708,7 +708,7 @@ partial class MixScrims
         {
             if (teamTojoin == 3)
             {
-                if (pickedCtPlayers.Any(p => p.PlayerID == player.PlayerID))
+                if (pickedCtPlayers.Any(p => p.SteamID == player.SteamID))
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation("HandlePlayerJoinTeam - PickingTeam: Player {PlayerName} re-joined CT team.", player.Controller.PlayerName);
@@ -724,7 +724,7 @@ partial class MixScrims
             }
             if (teamTojoin == 2)
             {
-                if (pickedTPlayers.Any(p => p.PlayerID == player.PlayerID))
+                if (pickedTPlayers.Any(p => p.SteamID == player.SteamID))
                 {
                     if (cfg.DetailedLogging)
                         logger.LogInformation("HandlePlayerJoinTeam - PickingTeam: Player {PlayerName} re-joined T team.", player.Controller.PlayerName);

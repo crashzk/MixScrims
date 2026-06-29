@@ -210,7 +210,7 @@ public partial class MixScrims
             return;
         }
 
-        players.RemoveAll(p => p.PlayerID == caller.PlayerID);
+        players.RemoveAll(p => p.SteamID == caller.SteamID);
         timeoutTotalEligibleVotes = players.Count; // Store for consistent use across methods
 
         if (cfg.DetailedLogging)

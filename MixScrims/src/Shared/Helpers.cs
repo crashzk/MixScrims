@@ -214,7 +214,7 @@ public sealed partial class MixScrims
         if (allPlayers.Count == 0)
             return new List<IPlayer>();
 
-        return allPlayers.Where(player => !readyPlayers.Any(rp => rp.PlayerID == player.PlayerID)).ToList();
+        return allPlayers.Where(player => !readyPlayers.Any(rp => rp.SteamID == player.SteamID)).ToList();
     }
 
     /// <summary>

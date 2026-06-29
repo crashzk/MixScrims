@@ -271,7 +271,7 @@ public sealed partial class MixScrims
 
         if (matchState == MatchState.Warmup || matchState == MatchState.MapChosen)
         {
-            if (readyPlayers.Any(p => p.PlayerID == player.PlayerID))
+            if (readyPlayers.Any(p => p.SteamID == player.SteamID))
             {
                 if (announce)
                 {
@@ -308,7 +308,7 @@ public sealed partial class MixScrims
 
         if (matchState == MatchState.Warmup || matchState == MatchState.MapChosen)
         {
-            var existing = readyPlayers.FirstOrDefault(p => p.PlayerID == player.PlayerID);
+            var existing = readyPlayers.FirstOrDefault(p => p.SteamID == player.SteamID);
 
             if (existing == null)
             {

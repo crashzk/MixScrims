@@ -63,12 +63,12 @@ public partial class MixScrims
                 PrintMessageToPlayer(player, Core.Localizer["error.captains_already_chosen"]);
                 return;
             }
-            if (captainCt != null && captainCt.PlayerID == player.PlayerID)
+            if (captainCt != null && captainCt.SteamID == player.SteamID)
             {
                 PrintMessageToPlayer(player, Core.Localizer["error.already_captain.ct"]);
                 return;
             }
-            if (captainT != null && captainT.PlayerID == player.PlayerID)
+            if (captainT != null && captainT.SteamID == player.SteamID)
             {
                 PrintMessageToPlayer(player, Core.Localizer["error.already_captain.t"]);
                 return;

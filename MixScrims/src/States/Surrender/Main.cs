@@ -72,7 +72,7 @@ public partial class MixScrims
             return;
         }
 
-        players.RemoveAll(p => p.PlayerID == caller.PlayerID);
+        players.RemoveAll(p => p.SteamID == caller.SteamID);
         surrenderTotalEligibleVotes = players.Count; // Store for consistent use across methods
 
         if (cfg.DetailedLogging)

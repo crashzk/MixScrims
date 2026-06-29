@@ -67,7 +67,7 @@ public partial class MixScrims
             return;
         }
 
-        if (target.PlayerID == caller.PlayerID)
+        if (target.SteamID == caller.SteamID)
         {
             PrintMessageToPlayer(caller, Core.Localizer["command.votekick.self"]);
             return;

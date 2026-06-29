@@ -61,7 +61,7 @@ public partial class MixScrims
 
         // Eligible voters = all team members except the target
         var teamPlayers = GetPlayersInTeam(team);
-        var eligible = teamPlayers.Where(p => p.PlayerID != target.PlayerID).ToList();
+        var eligible = teamPlayers.Where(p => p.SteamID != target.SteamID).ToList();
         int eligibleCount = eligible.Count;
 
         if (team == Team.CT)
@@ -70,7 +70,7 @@ public partial class MixScrims
             voteKickEligibleVotesT = eligibleCount;
 
         // Players that need to see the menu (eligible minus caller)
-        var menuPlayers = eligible.Where(p => p.PlayerID != caller.PlayerID).ToList();
+        var menuPlayers = eligible.Where(p => p.SteamID != caller.SteamID).ToList();
 
         // If the caller is the only eligible voter, auto-pass immediately
         if (menuPlayers.Count == 0)
