@@ -8,6 +8,10 @@ public partial class MixScrims
 {
     internal HashSet<ulong> rtvVoters = [];
 
+    // True between the moment an RTV passes and the post-load handler restoring state.
+    // Tells AnnouncePickedMap to stay in Warmup instead of advancing to MapChosen.
+    internal bool rtvTriggeredMapVote = false;
+
     /// <summary>
     /// Clears all RTV voters. Called on plugin reset, on Warmup map load, and after a successful RTV.
     /// </summary>
@@ -16,6 +20,7 @@ public partial class MixScrims
         if (rtvVoters.Count > 0 && cfg.DetailedLogging)
             logger.LogInformation("ResetRtvState: clearing {Count} RTV voter(s).", rtvVoters.Count);
         rtvVoters.Clear();
+        rtvTriggeredMapVote = false;
     }
 
     /// <summary>
@@ -69,6 +74,7 @@ public partial class MixScrims
 
         PrintMessageToAllPlayers(Core.Localizer["announcement.rtv.passed"]);
         ResetRtvState();
+        rtvTriggeredMapVote = true;
         StartMapVotingPhase();
     }
 
@@ -107,6 +113,7 @@ public partial class MixScrims
         {
             PrintMessageToAllPlayers(Core.Localizer["announcement.rtv.passed"]);
             ResetRtvState();
+            rtvTriggeredMapVote = true;
             StartMapVotingPhase();
         }
     }
