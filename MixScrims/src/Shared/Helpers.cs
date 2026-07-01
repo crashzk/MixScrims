@@ -135,6 +135,7 @@ public sealed partial class MixScrims
             if (replacement != null)
             {
                 captainCt = replacement;
+                SetCaptainClanTag(captainCt, Team.CT);
                 if (cfg.DetailedLogging)
                     logger.LogInformation("EnsureCaptainsAlive: Re-picked CT captain: {Name}", replacement.Name);
             }
@@ -154,6 +155,7 @@ public sealed partial class MixScrims
             if (replacement != null)
             {
                 captainT = replacement;
+                SetCaptainClanTag(captainT, Team.T);
                 if (cfg.DetailedLogging)
                     logger.LogInformation("EnsureCaptainsAlive: Re-picked T captain: {Name}", replacement.Name);
             }
@@ -206,7 +208,9 @@ public sealed partial class MixScrims
     }
 
     /// <summary>
-    /// Returns a list of players who haven't readied up yet.
+    /// Returns a list of players who haven't readied up yet. In TestMode bots are treated as
+    /// implicitly ready and excluded from this list, so the "not ready: ..." announcement and
+    /// the center-HTML display don't drown in bot names during scrim/staging sessions.
     /// </summary>
     internal List<IPlayer> GetNotReadyPlayers()
     {
@@ -214,7 +218,26 @@ public sealed partial class MixScrims
         if (allPlayers.Count == 0)
             return new List<IPlayer>();
 
-        return allPlayers.Where(player => !readyPlayers.Any(rp => rp.SteamID == player.SteamID)).ToList();
+        return allPlayers
+            .Where(player => !(cfg.TestMode && IsBot(player)))
+            .Where(player => !readyPlayers.Any(rp => rp.SteamID == player.SteamID))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Effective ready count used for state-transition decisions and UI counters. In TestMode
+    /// every connected bot is counted as implicitly ready on top of the human ready list, so
+    /// a lone human running !forceready in a bot-filled staging lobby can finalize the match.
+    /// Bots are never inserted into <see cref="readyPlayers"/> itself because they all share
+    /// SteamID 0, which would collapse them onto a single dedup slot.
+    /// </summary>
+    internal int GetEffectiveReadyCount()
+    {
+        if (!cfg.TestMode)
+            return readyPlayers.Count;
+
+        int botCount = GetPlayers().Count(IsBot);
+        return readyPlayers.Count + botCount;
     }
 
     /// <summary>

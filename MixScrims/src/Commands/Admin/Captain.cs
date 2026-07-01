@@ -48,7 +48,10 @@ public partial class MixScrims
             }
 
             var players = GetPlayingPlayers();
-            players.RemoveAll(p => captainCt?.SteamID == p.SteamID || captainT?.SteamID == p.SteamID);
+            // Compare by PlayerID (unique per slot), NOT SteamID — bots all share
+            // SteamID = 0, so a SteamID compare would wipe every bot from the
+            // eligible list the moment either captain is a bot.
+            players.RemoveAll(p => captainCt?.PlayerID == p.PlayerID || captainT?.PlayerID == p.PlayerID);
 
             if (players.Count == 0)
             {

@@ -226,12 +226,15 @@ public sealed partial class MixScrims
     /// </summary>
     internal void CheckReadyPlayersToStart()
     {
+        var effectiveReady = GetEffectiveReadyCount();
+        var required = GetNumberOfPlayersRequiredToStart();
+
         if (cfg.DetailedLogging)
-            logger.LogInformation("CheckReadyPlayersToStart: readyPlayers={ReadyCount} | Required={Required}", readyPlayers.Count, GetNumberOfPlayersRequiredToStart());
+            logger.LogInformation("CheckReadyPlayersToStart: readyPlayers={ReadyCount} (effective={Effective}) | Required={Required}", readyPlayers.Count, effectiveReady, required);
 
         var matchState = mixScrimsService.GetCurrentMatchState();
 
-        if (matchState == MatchState.Warmup && readyPlayers.Count >= GetNumberOfPlayersRequiredToStart())
+        if (matchState == MatchState.Warmup && effectiveReady >= required)
         {
             if (cfg.DetailedLogging)
                 logger.LogInformation("CheckReadyPlayersToStart: Starting Map Voting Phase");
@@ -251,7 +254,7 @@ public sealed partial class MixScrims
             StartMapVotingPhase();
         }
 
-        if (matchState == MatchState.MapChosen && readyPlayers.Count >= GetNumberOfPlayersRequiredToStart())
+        if (matchState == MatchState.MapChosen && effectiveReady >= required)
         {
             if (cfg.DetailedLogging)
                 logger.LogInformation("CheckReadyPlayersToStart: Starting Team Picking Phase");
@@ -264,6 +267,16 @@ public sealed partial class MixScrims
     /// </summary>
     internal void AddPlayerToReadyList(IPlayer player, bool announce = false)
     {
+        // In TestMode bots are implicitly ready via GetEffectiveReadyCount(); never insert them
+        // into the readyPlayers list because every bot shares SteamID 0 and would collapse the
+        // dedup check onto a single slot.
+        if (cfg.TestMode && IsBot(player))
+        {
+            if (cfg.DetailedLogging)
+                logger.LogInformation("AddPlayerToReadyList: skipping bot in TestMode (implicitly ready).");
+            return;
+        }
+
         var name = player.Name ?? $"#{player.PlayerID}";
         logger.LogInformation("AddPlayerToReadyList: called for {Player}", name);
 

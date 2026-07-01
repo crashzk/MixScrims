@@ -343,6 +343,9 @@ public partial class MixScrims
                     playingCtPlayers.Remove(captainCt);
                 }
             }
+            // Outgoing captain: strip the [Captain CT] prefix so the tag doesn't linger on
+            // the player being replaced (admin re-pick / volunteer swap).
+            RemoveCaptainClanTagFromPlayer(captainCt);
         }
 
         captainCt = player;
@@ -364,6 +367,8 @@ public partial class MixScrims
                 if (!playingCtPlayers.Any(p => p.SteamID == captainCt.SteamID))
                     playingCtPlayers.Add(captainCt);
             }
+
+            SetCaptainClanTag(captainCt, Team.CT);
 
             if (cfg.DetailedLogging)
                 logger.LogInformation("PickCtCaptain: picked {PlayerName}", captainCt.Name);
@@ -397,6 +402,9 @@ public partial class MixScrims
                     playingTPlayers.Remove(captainT);
                 }
             }
+            // Outgoing captain: strip the [Captain T] prefix so the tag doesn't linger on
+            // the player being replaced (admin re-pick / volunteer swap).
+            RemoveCaptainClanTagFromPlayer(captainT);
         }
 
         captainT = player;
@@ -418,6 +426,8 @@ public partial class MixScrims
                 if (!playingTPlayers.Any(p => p.SteamID == captainT.SteamID))
                     playingTPlayers.Add(captainT);
             }
+
+            SetCaptainClanTag(captainT, Team.T);
 
             if (cfg.DetailedLogging)
                 logger.LogInformation("PickTCaptain: picked {PlayerName}", captainT.Name);
@@ -444,11 +454,11 @@ public partial class MixScrims
 
         // Map-vote flow lands every player in Spectator after the new map loads, so
         // GetPlayersInTeam(CT/T) is empty during the MapChosen ready burst. Fall back to
-        // all valid human players so a captain can still be drawn instead of returning
-        // null (which would abort StartTeamPickingPhase and reset back to Warmup).
+        // all valid players so a captain can still be drawn instead of returning null
+        // (which would abort StartTeamPickingPhase and reset back to Warmup).
         if (players.Count == 0)
         {
-            players = GetPlayers().Where(p => IsPlayerValid(p) && !IsBot(p)).ToList();
+            players = GetPlayers().Where(IsPlayerValid).ToList();
         }
 
         if (captainCt != null)
@@ -461,8 +471,14 @@ public partial class MixScrims
             logger.LogWarning("PickRandomCaptain: No players available to pick a captain.");
             return null;
         }
-        var captainIndex = Random.Shared.Next(players.Count);
-        return players[captainIndex];
+
+        // Prefer humans; only draw a bot when the pool is bot-only (TestMode staging lobby
+        // where the lone human has already been drawn as the opposite-team captain).
+        var humans = players.Where(p => !IsBot(p)).ToList();
+        var pool = humans.Count > 0 ? humans : players;
+
+        var captainIndex = Random.Shared.Next(pool.Count);
+        return pool[captainIndex];
     }
 
     /// <summary>

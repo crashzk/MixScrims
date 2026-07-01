@@ -46,7 +46,7 @@ public partial class MixScrims
                 string notReadyPlayersNames = string.Join(", ", validNotReadyPlayers.Select(p => p.Controller.PlayerName));
                 if (cfg.DetailedLogging)
                     logger.LogInformation("Not ready players: {Names}", notReadyPlayersNames);
-                PrintMessageToAllPlayers(Core.Localizer["announcement.ready_status", readyPlayers.Count, GetNumberOfPlayersRequiredToStart()]);
+                PrintMessageToAllPlayers(Core.Localizer["announcement.ready_status", GetEffectiveReadyCount(), GetNumberOfPlayersRequiredToStart()]);
                 PrintMessageToAllPlayers(Core.Localizer["announcement.not_ready_players", notReadyPlayersNames]);
             }
         }
@@ -171,6 +171,113 @@ public partial class MixScrims
         }
     }
 
+    // Captain clan tags — pulled from the translations file (info.clan_tag.captain_ct /
+    // info.clan_tag.captain_t) so each language can localize the label. Accessed as
+    // properties (not const) because the localizer needs the plugin instance.
+    internal string CaptainCtClanTag => Core.Localizer["info.clan_tag.captain_ct"];
+    internal string CaptainTClanTag => Core.Localizer["info.clan_tag.captain_t"];
+
+    /// <summary>
+    /// Prefixes the given player's clan tag with the captain tag for their team. Preserves
+    /// whatever clan tag the player already has, so <see cref="RemoveCaptainClanTagFromPlayer"/>
+    /// (or the sweep on match start / reset) restores the original tag on removal. Idempotent.
+    /// </summary>
+    internal void SetCaptainClanTag(IPlayer? player, Team team)
+    {
+        if (player == null || !IsPlayerValid(player) || player.IsFakeClient)
+            return;
+
+        var tag = team == Team.CT ? CaptainCtClanTag : CaptainTClanTag;
+        var otherTag = team == Team.CT ? CaptainTClanTag : CaptainCtClanTag;
+
+        try
+        {
+            var playerClanTag = player.Controller.Clan ?? string.Empty;
+            var original = playerClanTag;
+
+            // Strip the opposite captain tag if the player somehow had it (defensive - covers
+            // an admin re-picking the same player for the other team).
+            if (playerClanTag.Contains(otherTag))
+                playerClanTag = playerClanTag.Replace(otherTag, "").Trim();
+            // Strip ready/not-ready markers so the captain prefix ends up first.
+            if (playerClanTag.Contains(Core.Localizer["info.clan_tag.ready"]))
+                playerClanTag = playerClanTag.Replace(Core.Localizer["info.clan_tag.ready"], "").Trim();
+            if (playerClanTag.Contains(Core.Localizer["info.clan_tag.not_ready"]))
+                playerClanTag = playerClanTag.Replace(Core.Localizer["info.clan_tag.not_ready"], "").Trim();
+
+            if (!playerClanTag.Contains(tag))
+                playerClanTag = string.IsNullOrEmpty(playerClanTag) ? tag : $"{tag} {playerClanTag}";
+
+            if (playerClanTag == original)
+                return;
+
+            player.Controller.Clan = playerClanTag;
+            player.Controller.ClanUpdated();
+            if (Core.GameEvent.IsListeningToEvent<EventNextlevelChanged>(player.PlayerID))
+                Core.GameEvent.FireToPlayerAsync<EventNextlevelChanged>(player.PlayerID);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "SetCaptainClanTag: Failed to set captain clan tag for player {PlayerName}.", player?.Name ?? $"Slot: {player?.Slot}");
+        }
+    }
+
+    /// <summary>
+    /// Strips both captain clan tags from a single player. Used when a captain is being replaced
+    /// mid-flow (admin re-pick, volunteer takeover) so the outgoing captain doesn't keep the tag.
+    /// </summary>
+    internal void RemoveCaptainClanTagFromPlayer(IPlayer? player)
+    {
+        if (player == null || !IsPlayerValid(player) || player.IsFakeClient)
+            return;
+
+        try
+        {
+            var playerClanTag = player.Controller.Clan ?? string.Empty;
+            var modified = false;
+
+            if (playerClanTag.Contains(CaptainCtClanTag))
+            {
+                playerClanTag = playerClanTag.Replace(CaptainCtClanTag, "").Trim();
+                modified = true;
+            }
+            if (playerClanTag.Contains(CaptainTClanTag))
+            {
+                playerClanTag = playerClanTag.Replace(CaptainTClanTag, "").Trim();
+                modified = true;
+            }
+
+            if (!modified)
+                return;
+
+            player.Controller.Clan = playerClanTag;
+            player.Controller.ClanUpdated();
+            if (Core.GameEvent.IsListeningToEvent<EventNextlevelChanged>(player.PlayerID))
+                Core.GameEvent.FireToPlayerAsync<EventNextlevelChanged>(player.PlayerID);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "RemoveCaptainClanTagFromPlayer: Failed to remove captain clan tag for player {PlayerName}.", player?.Name ?? $"Slot: {player?.Slot}");
+        }
+    }
+
+    /// <summary>
+    /// Sweeps captain clan tags off every player. Called on transition into Match and on any
+    /// reset/abort path so stale tags never survive across matches.
+    /// </summary>
+    internal void RemoveCaptainClanTagsFromAllPlayers()
+    {
+        var allPlayers = Core.PlayerManager.GetAllValidPlayers();
+
+        foreach (var player in allPlayers)
+        {
+            if (!IsPlayerValid(player) || player.IsFakeClient)
+                continue;
+
+            RemoveCaptainClanTagFromPlayer(player);
+        }
+    }
+
     /// <summary>
     /// Prints command reminders to all players, cycling through all available reminders.
     /// </summary>
@@ -250,7 +357,7 @@ public partial class MixScrims
     internal void DisplayReadyAndNotReadyPlayersInCenterHtml(int displayLenght)
     {
         var playersToStart = GetNumberOfPlayersRequiredToStart();
-        var readyMessage = Core.Localizer["info.center.ready_players_counter", readyPlayers.Count, playersToStart];
+        var readyMessage = Core.Localizer["info.center.ready_players_counter", GetEffectiveReadyCount(), playersToStart];
         var matchStartRequirements = Core.Localizer["info.center.match_start_requirements"];
         var message = $"{readyMessage}<br>{matchStartRequirements}";
 

@@ -57,7 +57,13 @@ public partial class MixScrims
 
     internal void ForceReadyAllPlayers()
     {
-        var players = GetPlayers();
+        // In TestMode bots are implicitly ready via GetEffectiveReadyCount(); keep them out of
+        // the readyPlayers list so their shared SteamID 0 doesn't collapse every bot onto a
+        // single dedup slot (the bug that produced "2/10 ready" with 1 human + 9 bots).
+        var players = cfg.TestMode
+            ? GetPlayers().Where(p => !IsBot(p)).ToList()
+            : GetPlayers();
+
         foreach (var player in players)
         {
             if (!readyPlayers.Any(rp => rp.SteamID == player.SteamID))
