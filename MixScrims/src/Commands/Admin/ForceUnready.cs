@@ -57,7 +57,13 @@ public partial class MixScrims
 
     internal void ForceUnreadyAllPlayers()
     {
-        var players = GetPlayers();
+        // Symmetric with ForceReadyAllPlayers: in TestMode bots are never in readyPlayers, so
+        // iterating over them here would be a no-op at best and would fall through the same
+        // SteamID-0 collision at worst. Keep the pass humans-only when TestMode is on.
+        var players = cfg.TestMode
+            ? GetPlayers().Where(p => !IsBot(p)).ToList()
+            : GetPlayers();
+
         foreach (var player in players)
         {
             if (readyPlayers.Any(rp => rp.SteamID == player.SteamID))

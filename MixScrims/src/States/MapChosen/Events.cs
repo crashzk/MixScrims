@@ -98,7 +98,11 @@ public partial class MixScrims
         {
             PickCaptains();
             captainsAnnouncementsTimer?.Cancel();
-            captainsAnnouncementsTimer = Core.Scheduler.RepeatBySeconds(cfg.ChatAnnouncementTimers.CaptainsAnnouncements, PrintChosenCaptains);
+            // DelayAndRepeatBySeconds (not RepeatBySeconds): SwiftlyS2 fires the first tick of a
+            // RepeatBySeconds timer synchronously at schedule time, which would double-print the
+            // captain announcement right on top of the pick-time announcement PickCaptains just
+            // emitted. Delay the first reminder by one full interval instead.
+            captainsAnnouncementsTimer = Core.Scheduler.DelayAndRepeatBySeconds(cfg.ChatAnnouncementTimers.CaptainsAnnouncements, cfg.ChatAnnouncementTimers.CaptainsAnnouncements, PrintChosenCaptains);
             Core.Scheduler.StopOnMapChange(captainsAnnouncementsTimer);
         });
         Core.Scheduler.StopOnMapChange(captainAnnouncementToken);

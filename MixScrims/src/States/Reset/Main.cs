@@ -30,6 +30,9 @@ public partial class MixScrims
         readyPlayers.Clear();
         playingCtPlayers.Clear();
         playingTPlayers.Clear();
+        // Strip captain tags before dropping the captain refs so any player carrying one
+        // (from an aborted PickingTeam / KnifeRound flow) gets it cleared here as well.
+        RemoveCaptainClanTagsFromAllPlayers();
         captainCt = null;
         captainT = null;
         winnerCaptain = null;

@@ -24,6 +24,10 @@ public partial class MixScrims
         if (cfg.ShowReadyStatusInScoreboard)
             RemoveReadyClanTagsFromAllPlayers();
 
+        // Captain tags are set unconditionally during team-picking; strip them here so the
+        // match starts with the players' original clan tags restored (empty if none).
+        RemoveCaptainClanTagsFromAllPlayers();
+
         UnpauseMatch();
         Core.Scheduler.NextTick(() =>
         {
